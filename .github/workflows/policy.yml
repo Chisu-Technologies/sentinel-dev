@@ -1,0 +1,34 @@
+name: policy
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+# A newer run on the same ref makes the older one moot.
+concurrency:
+  group: policy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  policy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          # The DCO check walks every commit of the PR, so it needs the history.
+          fetch-depth: 0
+          # Later steps run code from the pull request; they do not need the token.
+          persist-credentials: false
+      - name: Policy check self-test
+        run: bash scripts/policy-check_test.sh
+      - name: Policy check
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: bash scripts/policy-check.sh
