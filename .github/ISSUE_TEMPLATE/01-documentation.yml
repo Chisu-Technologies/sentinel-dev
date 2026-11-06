@@ -1,0 +1,39 @@
+name: Documentation problem
+description: Something in the documentation is wrong, unclear or missing.
+title: "docs: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Sentinel for developers is pre-alpha and nothing is installable yet, so the
+        documentation describes a planned design. Please do not use this form for
+        security problems; see SECURITY.md.
+  - type: input
+    id: page
+    attributes:
+      label: Page
+      description: The file or page that has the problem.
+      placeholder: README.md
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What is wrong or missing
+      description: Quote the sentence if you can.
+    validations:
+      required: true
+  - type: textarea
+    id: fix
+    attributes:
+      label: Suggested fix
+      description: Optional. Say how you would change it.
+    validations:
+      required: false
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before you submit
+      options:
+        - label: This report contains no credentials and no other people's data.
+          required: true

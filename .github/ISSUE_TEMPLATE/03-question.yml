@@ -1,0 +1,26 @@
+name: Question
+description: Ask how something is meant to work. Discussions are off for now.
+title: "question: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Sentinel for developers is pre-alpha and nothing is installable yet, so answers
+        describe the planned design. Please do not use this form for security problems;
+        see SECURITY.md.
+  - type: textarea
+    id: question
+    attributes:
+      label: Your question
+      description: What do you want to know? Link the page you read, if any.
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before you submit
+      options:
+        - label: I searched the existing issues and the docs/ pages.
+          required: true
+        - label: This question contains no credentials and no other people's data.
+          required: true
