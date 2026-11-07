@@ -1,90 +1,62 @@
 # Roadmap
 
-Status: planned design, not implemented.
+> **Planned.** There are no dates. A phase starts when the previous one passes its
+> gate, and each gate is checked by running something. The plan can change.
 
-> **Planned.** Sentinel for developers is pre-alpha and nothing described here is
-> available yet. There are no dates on this page. A phase starts when the previous one
-> passes its gate, and the phase numbers give order, not time. The plan can
-> change.
+## Phase 0: the hosted service
 
-There are four phases. Each one ends with a gate that is checked by running something,
-not by opinion. Terms are explained in the [glossary](glossary.md), and the commands in
-[Commands](commands.md).
+- A free developer account, with sign-up outside checkout and protection against
+  abuse.
+- Device-code sign-in for the local program, and a personal token that cannot approve
+  plans.
+- An interface for the plugin to save plans, take tasks, and send runner reports and
+  the Brain projection.
+- Plans and tasks in the hosted service, a web page to approve a plan, and the board.
+  The contracts between the plugin and the service are written before any code.
 
-## Phase 0: the hosted service first
-
-The plugin is of no use without somewhere to keep plans and evidence, so the hosted
-service comes first. This phase adds what the plugin will need from it:
-
-- a free account type for developers, with sign-up that does not go through checkout
-  and has protection against abuse;
-- sign-in for the local program with a device code, and a personal token that cannot
-  approve plans;
-- an interface for the plugin to save plans, take tasks, send runner reports and send
-  the Brain projection;
-- plans and tasks stored in the hosted service, a web page where you approve a plan,
-  and the board that shows them.
-
-The technical contracts between the plugin and the hosted service are written down
-before any code, so that each side can be built and tested separately.
-
-**Gate.** With a test token, a script saves a plan, a person approves it on the web,
-and the script closes a task with a runner report id. The task shows as done on the
-board. Approving with the token fails, and so does closing a task without a report id.
+**Gate:** with a test token, a script saves a plan, a person approves it on the web,
+and the script closes a task with a runner report id; the board shows it done.
+Approving with the token fails, and so does closing a task without a report id.
 
 ## Phase 1: closed beta in Claude Code
 
-The first usable version, for invited people using Claude Code only. It brings:
+- The local program: sign-in, the MCP server, and a test runner for Node and Python.
+- The commands login, setup, architect, approve, run, verify, plans, retry and
+  backlog, without the Brain; `verify` runs only the tests.
+- Plugin prompts written for Claude Code, the marketplace in this repository, and the
+  list of invited people.
+- How the program reaches your machine, decided and tested on Windows, macOS and
+  Linux.
 
-- the local program with sign-in, the MCP server and a test runner for Node and Python
-  projects;
-- the plugin with the commands to log in, set up a repository, plan, approve, run,
-  verify, list plans, retry and send a task back to the backlog. In this phase `setup`
-  and the architect step work without the Brain, and `verify` runs only the tests;
-- prompts for the plugin, written new for Claude Code;
-- the public repository with the marketplace, and the list of invited people.
-
-How the local program reaches your machine will be decided and tested on Windows,
-macOS and Linux during this phase. It is not decided yet.
-
-**Gate.** External developers complete a plan in which every task is closed with a
-runner report. In the audit record, every approval comes from a web session and none
-from a token.
+**Gate:** external developers complete a plan in which every task is closed with a
+runner report, and every approval in the audit record comes from a web session.
 
 ## Phase 2: QA, reviewers and the Brain
 
-The full version of the checks. It brings:
+- The runner starts your app and a browser on a private network, with amd64 and arm64
+  images.
+- The QA subagent and the security and code reviewers, each with a restricted tool
+  list.
+- The full `run` and `verify`, the Brain indexer, the `brain` command, and planning
+  that consults the Brain.
+- The `evidence`, `runs` and `reopen` commands; signed receipts and their verifier.
+- The plugin for Codex, once open points are verified, such as whether Codex loads a
+  local MCP server bundled in a plugin.
 
-- the runner starting your app and a browser on a private network, with images for
-  amd64 and arm64;
-- the QA subagent and the security and code reviewers, each with a restricted tool list;
-- the complete `run` and `verify`: tests, app, browser and reviewers;
-- the local Brain indexer, the command to query it, and the architect step consulting
-  the Brain;
-- the commands for evidence, run history and reopening a task;
-- receipts for reported evidence, signed by the hosted service, and the verifier;
-- the same plugin for Codex. Several points about Codex are still to verify, among them
-  whether it loads a local MCP server bundled in a plugin.
-
-**Gate.** In a test repository with a flaw planted on purpose, an endpoint without
-authentication, the QA subagent or the security reviewer finds it and the task is not
-closed.
+**Gate:** in a test repository with a planted flaw, an endpoint without
+authentication, the QA subagent or the security reviewer finds it and the task does
+not close.
 
 ## Phase 3: public launch
 
-Opening the project beyond the invited group. It brings:
+- Third-party notices completed before any review rubric derived from another project
+  is published.
+- Submission to Anthropic's plugin directory, with Codex included in the launch.
+- A way to move a plan, its Brain and its history to a paid plan.
 
-- the third-party notices completed before any review rubric derived from another
-  project is published;
-- submission of the plugin to Anthropic's plugin directory;
-- Codex included in the launch;
-- a way to move a plan, its Brain and its history to a paid plan of the hosted service.
+**Gate:** public sign-up holds up under a surge of registrations without abuse, and
+moving a plan to a paid plan works end to end.
 
-**Gate.** Public sign-up holds up under a surge of registrations without abuse, and
-moving a plan to a paid plan works from start to finish.
+## Not planned
 
-## What is not on the roadmap
-
-These surfaces are not supported and have no phase: the Claude chat surfaces, Cowork
-until it has been tested, the ChatGPT chat and Cursor. The
-[compatibility page](compatibility.md) has the details.
+Claude chat surfaces, Cowork until it has been tested, ChatGPT chat and Cursor.
