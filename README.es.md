@@ -1,7 +1,7 @@
-<!-- translated-from: README.md @ 70560bd on 2026-11-07 -->
+<!-- translated-from: README.md @ 23a4218 on 2026-11-07 -->
 [English](README.md) · Español
 
-> Traducción de [README.md](README.md) hecha a partir del commit `70560bd`. Si difieren,
+> Traducción de [README.md](README.md) hecha a partir del commit `23a4218`. Si difieren,
 > prevalece el inglés. El resto de la documentación está en inglés.
 
 [![policy](https://github.com/Chisu-Technologies/sentinel-dev/actions/workflows/policy.yml/badge.svg)](https://github.com/Chisu-Technologies/sentinel-dev/actions/workflows/policy.yml)
@@ -15,7 +15,8 @@ Ejecutará tus tests, arrancará tu aplicación y la recorrerá con un navegador
 después informará de lo que pasó de verdad, no de lo que el agente dice que pasó.
 
 > **Pre-alfa.** Todavía no hay nada que instalar; este repositorio contiene el diseño
-> planeado. La beta será sólo por invitación.
+> planeado. La beta será sólo por invitación, y aún no hay forma de pedir una. El
+> acceso lo controla Sentinel, no el hecho de que este repositorio sea público.
 
 ## Cómo funcionará
 
@@ -54,12 +55,12 @@ Tu token de Sentinel vivirá en el llavero del sistema operativo. El programa nu
 leerá, guardará ni reenviará tu sesión de Claude o de ChatGPT, y los contenedores no
 recibirán más secretos que las variables de prueba que declares para ese repositorio.
 
-Los detalles, y lo que aún no está decidido, están en la
-[página de privacidad](docs/privacy.md).
+Para el cuadro completo, incluido lo que aún no está decidido, lee la
+[página de privacidad](docs/privacy.md) (en inglés).
 
 ## La evidencia es reportada, no atestada
 
-Tu máquina ejecuta las comprobaciones e informa de los resultados, así que en tu
+Tu máquina ejecutará las comprobaciones e informará de los resultados, así que en tu
 máquina se puede falsificar la evidencia. Sentinel la etiqueta como "reportada", no
 como "atestada". Mira el [modelo de seguridad](docs/security-model.md).
 
@@ -73,9 +74,12 @@ aquí.
 ## Requisitos (planeados)
 
 - Docker.
-- Claude Code en la terminal; la versión mínima se confirmará en el lanzamiento.
-- Windows, macOS o Linux, en x64 o arm64. Ninguno está probado todavía, y aún no está
-  decidido cómo se distribuirá el programa.
+- Claude Code en la terminal, el único host de la beta cerrada; la versión mínima se
+  confirmará en el lanzamiento. La pestaña Code de la app de escritorio está planeada
+  y sin verificar.
+- Windows, macOS o Linux, en x64 o arm64; Windows en arm64 está por confirmar. Ninguno
+  está probado todavía, y aún no está decidido cómo se distribuirá el programa.
+- El plan gratuito tendrá límites de uso; todavía no están publicados.
 - Una cuenta de GitHub, para iniciar sesión.
 
 ## Hoja de ruta
