@@ -12,7 +12,8 @@ start your app and drive a real browser against it, then report what actually ha
 instead of what the agent claims happened.
 
 > **Pre-alpha.** Nothing is installable yet; this repository holds the planned design.
-> The beta will be by invitation only.
+> The beta will be by invitation only, and there is no way to request an invitation
+> yet. Access is controlled by Sentinel, not by this repository being public.
 
 ## How it will work
 
@@ -48,12 +49,13 @@ Your Sentinel token will live in the operating system keychain. The program will
 read, store or forward your Claude or ChatGPT session, and containers will receive no
 secrets other than test variables you declare for that repository.
 
-The details, and what is not yet decided, are on the [privacy page](docs/privacy.md).
+For the full picture, including what is not yet decided, read the
+[privacy page](docs/privacy.md).
 
 ## Evidence is reported, not attested
 
-Your machine runs the checks and reports the results, so the evidence can be forged on
-your machine. Sentinel labels it "reported", not "attested". See the
+Your machine will run the checks and report the results, so the evidence can be forged
+on your machine. Sentinel labels it "reported", not "attested". See the
 [security model](docs/security-model.md).
 
 ## What is open
@@ -65,9 +67,11 @@ engine behind the paid plans and the Heads are closed source and are not here.
 ## Requirements (planned)
 
 - Docker.
-- Claude Code in the terminal; the minimum version will be confirmed at release.
-- Windows, macOS or Linux, on x64 or arm64. None of them is tested yet, and how the
-  program will be delivered is not yet decided.
+- Claude Code in the terminal, the only host of the closed beta; the minimum version
+  will be confirmed at release. The desktop app's Code tab is planned and unverified.
+- Windows, macOS or Linux, on x64 or arm64; Windows on arm64 is to be confirmed. None
+  of them is tested yet, and how the program will be delivered is not yet decided.
+- Usage limits on the free plan will apply; they are not published yet.
 - A GitHub account, to sign in.
 
 ## Roadmap

@@ -23,9 +23,9 @@ configuration. From the first release it also covers:
 The hosted service is closed source and not in this repository; report its
 vulnerabilities through the same channel.
 
-Not a vulnerability: code in your own repository doing what it is written to do
-(escaping the container isolation is one), or a known issue in a dependency without
-evidence that this project reaches the vulnerable code.
+Not a vulnerability: code in your own repository doing what it is written to do, or
+a known issue in a dependency without evidence that this project reaches the
+vulnerable code. Escaping the container isolation around your code is in scope.
 
 ## Supported versions
 

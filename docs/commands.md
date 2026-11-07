@@ -51,5 +51,5 @@ does not close without a runner report.
 
 ## Codex
 
-Planned for Phase 2. Codex starts skills with `$` or `/skills`, not `/sentinel:`. No
-Codex commands are listed until loading the plugin in Codex is verified.
+Planned for Phase 2. No Codex commands are listed until loading the plugin in Codex is
+verified.

@@ -14,6 +14,11 @@ You sign in with GitHub in your browser. The hosted service then issues a person
 revocable token that works only with the plugin's interface. It lives in the operating
 system keychain, not in the repository and not in a plain file.
 
+## The plan
+
+A plan has stages, sprints and tasks, each with a title, a description, acceptance
+criteria and dependencies. All of it is sent, as is the status of each task.
+
 ## Fields of a runner report
 
 | Field | Meaning |

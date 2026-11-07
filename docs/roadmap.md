@@ -23,8 +23,8 @@ Approving with the token fails, and so does closing a task without a report id.
 - The local program: sign-in, the MCP server, and a test runner for Node and Python.
 - The commands login, setup, architect, approve, run, verify, plans, retry and
   backlog, without the Brain; `verify` runs only the tests.
-- Plugin prompts written for Claude Code, the marketplace in this repository, and the
-  list of invited people.
+- Plugin prompts written for Claude Code, the marketplace in this repository (its
+  name is not yet decided), and the list of invited people.
 - How the program reaches your machine, decided and tested on Windows, macOS and
   Linux.
 
@@ -40,8 +40,12 @@ runner report, and every approval in the audit record comes from a web session.
 - The full `run` and `verify`, the Brain indexer, the `brain` command, and planning
   that consults the Brain.
 - The `evidence`, `runs` and `reopen` commands; signed receipts and their verifier.
-- The plugin for Codex, once open points are verified, such as whether Codex loads a
-  local MCP server bundled in a plugin.
+- The plugin for Codex, once these points are verified against Codex: whether it
+  loads a local MCP server bundled in a plugin (if not, `/sentinel:setup` registers
+  the program with `codex mcp add`), whether it shows the sign-in prompt for
+  third-party servers, where its plugin manifest goes, how long a tool call may take
+  (long operations are started and then polled), and whether a subagent can be
+  restricted to a tool list.
 
 **Gate:** in a test repository with a planted flaw, an endpoint without
 authentication, the QA subagent or the security reviewer finds it and the task does

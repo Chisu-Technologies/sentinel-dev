@@ -18,6 +18,8 @@ check.
 Every commit needs a `Signed-off-by:` line, added with `git commit -s`. It certifies
 the [Developer Certificate of Origin 1.1](https://developercertificate.org/). The
 `policy` check rejects a pull request with an unsigned commit that is not a merge.
+Contributions are licensed under MIT; nothing here promises how the hosted service may
+use them.
 
 ## Commits and pull requests
 
@@ -31,15 +33,15 @@ the [Developer Certificate of Origin 1.1](https://developercertificate.org/). Th
 
 ## Documentation
 
-- Describe planned features as planned, never as working.
+- Do not describe a planned feature as if it worked.
 - No prices, quotas, dates or promises about the hosted service.
 - Changes to what leaves a user's machine, retention, deletion, account data, training
   or telemetry need an issue first. Where something is not decided, write "not yet
   decided".
 - No internal details: hostnames, providers, private repositories, ticket numbers,
   internal paths, secrets or personal email addresses.
-- A translation names the English file and commit it comes from, and the English text
-  prevails.
+- Open an issue before starting a translation. A translation names the English file
+  and commit it comes from, and the English text prevails.
 
 ## Checks
 
@@ -48,6 +50,9 @@ bash scripts/policy-check_test.sh
 bash scripts/policy-check.sh
 ```
 
-Both run in CI as the `policy` workflow. The maintainer merges only after it passes.
+Both run in CI as the `policy` workflow: a `LICENSE` file, a 5 MiB cap on tracked
+files and on every blob a pull request adds, no `export-ignore`, `export-subst` or
+`filter` attributes, and a sign-off on every non-merge commit. The maintainer merges
+only after it passes.
 
 Taking part in this project means following the [code of conduct](CODE_OF_CONDUCT.md).

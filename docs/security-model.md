@@ -8,7 +8,7 @@
 A plugin runs code with your user privileges; see Anthropic's
 [plugin security documentation](https://code.claude.com/docs/en/plugins/security)
 (checked 2026-11-06). The local program also runs as your user and starts containers
-through Docker, which is why it and the plugin are published under MIT here. The
+through Docker, which is why it and the plugin will be published under MIT here. The
 hosted service is closed source, and this page makes no claim about its internals.
 
 ## A hostile repository
@@ -46,8 +46,8 @@ Tests from Phase 1; your app and a browser from Phase 2.
 - Preparing the app (Phase 2) runs with `--network=none`.
 - The app and the browser (Phase 2) share a per-run `--internal` network with no route
   to the internet.
-- Phase 1 supports Node and Python. An unknown stack fails closed: the run does not
-  start.
+- Phase 1 supports Node and Python; other stacks are not planned. An unknown stack
+  fails closed: the run does not start.
 
 ## Credentials
 
@@ -73,11 +73,11 @@ attested evidence.
   [license terms](https://docs.docker.com/subscription/desktop-license/) (checked
   2026-11-06); alternatives compatible with the Docker API are untested.
 - On Windows with WSL2, containers get no CPU limit; the memory and process limits
-  remain.
+  remain, and `/sentinel:setup` warns about it.
 - Until the arm64 browser image exists (Phase 2), the browser runs emulated on Apple
   Silicon.
-- The Brain engine, `codebase-memory-mcp` (MIT), has no Windows arm64 build in the
-  pinned version.
+- The Brain engine, `codebase-memory-mcp` (MIT), may have no Windows arm64 build;
+  Windows on arm64 is to be confirmed.
 - If your agent's usage runs out in the middle of a plan, the run stops with a
   warning, the reservation expires and the task goes back to waiting.
 - If Codex cannot restrict a subagent to a tool list, a Codex QA subagent could edit

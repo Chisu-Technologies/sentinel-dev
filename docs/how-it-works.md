@@ -65,9 +65,10 @@ Sentinel works only while your session is open.
 6. A red report starts another attempt, up to a limit of correction rounds; after
    that the task is marked as failed.
 
-The board has four columns: in progress, needs a decision, needs attention and done.
-A task marked as human waits in "needs a decision" until you mark it done on the web.
-Pushing the branch and opening a pull request stay your decision.
+The board has four columns: in progress, needs a decision, needs attention and done;
+tasks not yet started sit in the backlog. A task marked as human waits in "needs a
+decision" until you mark it done on the web. Pushing the branch and opening a pull
+request stay your decision.
 
 ## Evidence
 
@@ -86,6 +87,6 @@ closed tasks (Phase 2) are labeled reported too.
 | Hosted service | Closed source |
 | Engine of the paid plans, and the Heads | Closed source, not in this repository |
 
-On the paid plans the work runs without you present; that engine is not part of this
-project. Because the hosted service is closed, what you can audit is what the open
-parts send to it.
+On the paid plans the work is meant to run without you present; their engine is not
+part of this project. Because the hosted service is closed, what you can audit is
+what the open parts send to it.

@@ -29,8 +29,9 @@ Both run in CI as the `policy` workflow, and work from any directory.
 - English Markdown, prose wrapped at 88 columns, sentence-case headings, one H1 per
   file, relative links between files of this repository.
 - A page about unreleased work starts with a one-line `> **Planned.**` or
-  `> **Design intent.**` banner. Do not describe a planned feature as if it worked.
-  "Phase N" means order, not a date.
+  `> **Design intent.**` banner; under it the design may be described in the present
+  tense. Elsewhere, unreleased work is written in the future tense. Do not describe a
+  planned feature as if it worked. "Phase N" means order, not a date.
 - Do not invent commands. A Claude Code or Codex command is copied verbatim from the
   official documentation, with its address and the check date.
 - The README section "What will leave your machine, and what will not" is negotiated
