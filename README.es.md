@@ -1,8 +1,8 @@
-<!-- translated-from: README.md @ ba20e34 on 2026-11-06 -->
+<!-- translated-from: README.md @ 70560bd on 2026-11-07 -->
 [English](README.md) · Español
 
-> Esta es una traducción de [README.md](README.md) hecha a partir del commit `ba20e34`.
-> Si difieren, prevalece el inglés. El resto de la documentación está en inglés.
+> Traducción de [README.md](README.md) hecha a partir del commit `70560bd`. Si difieren,
+> prevalece el inglés. El resto de la documentación está en inglés.
 
 [![policy](https://github.com/Chisu-Technologies/sentinel-dev/actions/workflows/policy.yml/badge.svg)](https://github.com/Chisu-Technologies/sentinel-dev/actions/workflows/policy.yml)
 
@@ -12,55 +12,24 @@
 
 Sentinel para desarrolladores comprueba el trabajo de tu agente de programación.
 Ejecutará tus tests, arrancará tu aplicación y la recorrerá con un navegador real, y
-después informará de lo que pasó de verdad, no de lo que el agente dice que pasó. Los
-resultados los informa tu propia máquina; mira
-[qué es la evidencia y qué no](#qué-es-la-evidencia-y-qué-no).
+después informará de lo que pasó de verdad, no de lo que el agente dice que pasó.
 
-Claude Code es un producto de Anthropic y Codex uno de OpenAI; Sentinel no está
-afiliado a ninguna de las dos.
-
-## Estado: pre-alfa
-
-> **Todavía no hay nada que instalar.** Todo lo que se describe abajo está planeado.
-
-Este repositorio es público desde el primer día para que veas qué se está construyendo
-y con qué licencia. El acceso a la beta lo controlará Sentinel, no la visibilidad de
-este repositorio. La beta es sólo por invitación. Por ahora las preguntas van por
-[issues](https://github.com/Chisu-Technologies/sentinel-dev/issues/new/choose).
+> **Pre-alfa.** Todavía no hay nada que instalar; este repositorio contiene el diseño
+> planeado. La beta será sólo por invitación.
 
 ## Cómo funcionará
 
-- Un plugin para Claude Code y, más adelante, para Codex. Trabajará con Claude Code y
-  usará tu propia sesión; no la sustituirá.
-- Un programa local que ejecutará tus tests, tu aplicación y un navegador en Docker,
-  en tu propia máquina.
-- Una cuenta gratuita de Sentinel que guardará el plan, la proyección del Brain y la
-  evidencia. El Brain es el mapa que Sentinel hace de tu repositorio: qué ficheros y
-  símbolos existen y cómo se relacionan entre sí.
+- **Un plugin** para Claude Code y, más adelante, para Codex. Quien piensa es tu
+  agente, en tu propia sesión y con tu propia suscripción. Sentinel no te pedirá una
+  API key.
+- **Un programa local** que el plugin arranca como servidor MCP. Ejecutará tus tests,
+  tu aplicación y un navegador en Docker, en tu máquina.
+- **Una cuenta gratuita de Sentinel** que guardará el plan, la proyección del Brain (un
+  mapa de los ficheros y símbolos de tu repositorio) y la evidencia.
 
-Quien piensa es tu agente, con tu propia suscripción. Sentinel no pagará la inferencia
-ni te pedirá una API key. Todo ocurrirá dentro de tu sesión interactiva, y los
-resultados quedarán en ramas locales. Hacer push y abrir un pull request sigue siendo
-decisión tuya.
-
-> **Planeado (fase 1).** Un día de trabajo será así, sólo con los nombres de los
-> comandos: planear con `/sentinel:architect`, aprobar el plan en la web con
-> `/sentinel:approve`, implementar y probar con `/sentinel:run`, comprobar los cambios
-> actuales con `/sentinel:verify` y, al final, revisar tú la rama. En la
-> [página de comandos](docs/commands.md) (en inglés) está la fase de cada comando.
-
-## Qué es abierto y qué no
-
-> **Planeado.** Ninguna de las partes abiertas existe todavía; hoy este repositorio
-> contiene la documentación y las comprobaciones que la protegen.
-
-Serán abiertos, con licencia MIT y en este repositorio: el plugin (comandos,
-subagentes y rúbricas de revisión), el programa local (login, servidor MCP, runner,
-indexador del Brain y verificador de recibos) y los formatos publicados de los planes,
-los informes del runner, el grafo del Brain y la evidencia.
-
-No son abiertos: el servicio alojado, el motor de los planes de pago y los Heads. No
-están en este repositorio. Mira [cómo funciona](docs/how-it-works.md) (en inglés).
+Un día de trabajo: planear con `/sentinel:architect`, aprobar el plan en la web,
+implementar y probar con `/sentinel:run` y, al final, revisar tú la rama local. Mira
+los [comandos](docs/commands.md) y [cómo funciona](docs/how-it-works.md).
 
 ## Qué saldrá de tu máquina y qué no
 
@@ -85,57 +54,45 @@ Tu token de Sentinel vivirá en el llavero del sistema operativo. El programa nu
 leerá, guardará ni reenviará tu sesión de Claude o de ChatGPT, y los contenedores no
 recibirán más secretos que las variables de prueba que declares para ese repositorio.
 
-Para el cuadro completo, incluido lo que aún no está decidido, lee la
-[página de privacidad](docs/privacy.md) (en inglés).
+Los detalles, y lo que aún no está decidido, están en la
+[página de privacidad](docs/privacy.md).
 
-## Qué es la evidencia y qué no
+## La evidencia es reportada, no atestada
 
-Los resultados los informa tu máquina al servicio alojado. En tu máquina se puede
-falsificar la evidencia, así que Sentinel la etiqueta como "reportada" y nunca como
-"atestada". Lee el [modelo de seguridad](docs/security-model.md) (en inglés) para ver
-la intención del diseño y sus límites.
+Tu máquina ejecuta las comprobaciones e informa de los resultados, así que en tu
+máquina se puede falsificar la evidencia. Sentinel la etiqueta como "reportada", no
+como "atestada". Mira el [modelo de seguridad](docs/security-model.md).
+
+## Qué es abierto
+
+El plugin, el programa local y los formatos publicados (plan, informe del runner, grafo
+del Brain, evidencia) tendrán licencia MIT y estarán en este repositorio. El servicio
+alojado, el motor de los planes de pago y los Heads son de código cerrado y no están
+aquí.
 
 ## Requisitos (planeados)
 
 - Docker.
-- Claude Code, en una versión mínima que se confirmará en el lanzamiento.
-- Un sistema operativo compatible; mira la
-  [página de compatibilidad](docs/compatibility.md) (en inglés).
+- Claude Code en la terminal; la versión mínima se confirmará en el lanzamiento.
+- Windows, macOS o Linux, en x64 o arm64. Ninguno está probado todavía, y aún no está
+  decidido cómo se distribuirá el programa.
+- Una cuenta de GitHub, para iniciar sesión.
 
-## Instalación
+## Hoja de ruta
 
-Todavía no hay nada que instalar. El flujo planeado, con cada comando marcado como que
-aún no funciona, está en [primeros pasos](docs/getting-started.md) (en inglés).
+Cuatro fases, en orden y sin fechas: la parte del servicio alojado, una beta cerrada en
+Claude Code, QA con revisores y el Brain, y el lanzamiento público. Mira la
+[hoja de ruta](docs/roadmap.md).
 
-## Documentación
+## Licencia y contribuciones
 
-Toda en inglés por ahora.
-
-- [Índice de la documentación](docs/README.md)
-- [Primeros pasos](docs/getting-started.md) y [cómo funciona](docs/how-it-works.md)
-- [Privacidad](docs/privacy.md) y [modelo de seguridad](docs/security-model.md)
-- [Comandos](docs/commands.md) y [compatibilidad](docs/compatibility.md)
-- [Preguntas frecuentes](docs/faq.md), [glosario](docs/glossary.md) y
-  [hoja de ruta](docs/roadmap.md)
-
-## Lo que viene
-
-El trabajo está planeado en cuatro fases, en orden y sin fechas: la fase 0 construye la
-parte del servicio alojado, la fase 1 es una beta cerrada en Claude Code, la fase 2
-añade QA, revisores y el Brain, y la fase 3 es el lanzamiento público. Mira la
-[hoja de ruta](docs/roadmap.md) (en inglés).
-
-## Licencia
-
-MIT. Mira [LICENSE](LICENSE). Los componentes de terceros están en
-[THIRD_PARTY-NOTICES.md](THIRD_PARTY-NOTICES.md).
-
-## Seguridad y contribuciones
-
-Por favor, informa de las vulnerabilidades en privado; mira [SECURITY.md](SECURITY.md).
-Las contribuciones son bienvenidas bajo el DCO; mira [CONTRIBUTING.md](CONTRIBUTING.md).
+MIT; mira [LICENSE](LICENSE) y [THIRD_PARTY-NOTICES.md](THIRD_PARTY-NOTICES.md).
+Informa de las vulnerabilidades en privado como explica [SECURITY.md](SECURITY.md).
+Las contribuciones necesitan la firma del DCO; mira [CONTRIBUTING.md](CONTRIBUTING.md)
+y el [código de conducta](CODE_OF_CONDUCT.md).
 
 ---
 
-Los nombres de producto pertenecen a sus dueños. Sentinel para desarrolladores no tiene
-relación con Microsoft Sentinel.
+Claude Code es un producto de Anthropic y Codex uno de OpenAI; Sentinel no está
+afiliado a ninguna de las dos. Sentinel para desarrolladores no tiene relación con
+Microsoft Sentinel.
