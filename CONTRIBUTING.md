@@ -1,67 +1,58 @@
 # Contributing
 
-Thanks for helping. This project is pre-alpha, so this guide will grow.
+The project is pre-alpha; today this repository holds the documentation and the policy
+check.
+
+## Before you start
+
+- Open an issue before a feature, a new document or a behavior change, and wait for
+  agreement. A pull request without one may be closed unreviewed. Typos and broken
+  links need no issue.
+- The hosted service is closed source and out of scope here.
+- Write in English, or in Spanish if that is easier for you. Ask questions with the
+  Question issue form.
+- Security problems go through [SECURITY.md](SECURITY.md), not an issue.
 
 ## Sign your commits (DCO)
 
-Every commit must carry a `Signed-off-by:` line. Add it with `git commit -s`. By signing
-off you certify the Developer Certificate of Origin 1.1:
+Every commit needs a `Signed-off-by:` line, added with `git commit -s`. It certifies
+the [Developer Certificate of Origin 1.1](https://developercertificate.org/). The
+`policy` check rejects a pull request with an unsigned commit that is not a merge.
+Contributions are licensed under MIT; nothing here promises how the hosted service may
+use them.
 
-```
-Developer Certificate of Origin
-Version 1.1
+## Commits and pull requests
 
-Copyright (C) 2004, 2006 The Linux Foundation and its contributors.
+- Short imperative subject with a prefix such as `fix:`, `feat:`, `docs:` or `ci:`;
+  the body explains why.
+- Code or text from other projects only under a license compatible with MIT, with the
+  source stated in the pull request.
+- AI tools are welcome. Say in the pull request which part they wrote. The person who
+  signs off must understand every change and be able to explain it. A pull request
+  opened by an autonomous agent, with nobody answering for it, is closed.
 
-Everyone is permitted to copy and distribute verbatim copies of this
-license document, but changing it is not allowed.
+## Documentation
 
+- Do not describe a planned feature as if it worked.
+- No prices, quotas, dates or promises about the hosted service.
+- Changes to what leaves a user's machine, retention, deletion, account data, training
+  or telemetry need an issue first. Where something is not decided, write "not yet
+  decided".
+- No internal details: hostnames, providers, private repositories, ticket numbers,
+  internal paths, secrets or personal email addresses.
+- Open an issue before starting a translation. A translation names the English file
+  and commit it comes from, and the English text prevails.
 
-Developer's Certificate of Origin 1.1
+## Checks
 
-By making a contribution to this project, I certify that:
-
-(a) The contribution was created in whole or in part by me and I
-    have the right to submit it under the open source license
-    indicated in the file; or
-
-(b) The contribution is based upon previous work that, to the best
-    of my knowledge, is covered under an appropriate open source
-    license and I have the right under that license to submit that
-    work with modifications, whether created in whole or in part
-    by me, under the same open source license (unless I am
-    permitted to submit under a different license), as indicated
-    in the file; or
-
-(c) The contribution was provided directly to me by some other
-    person who certified (a), (b) or (c) and I have not modified
-    it.
-
-(d) I understand and agree that this project and the contribution
-    are public and that a record of the contribution (including all
-    personal information I submit with it, including my sign-off) is
-    maintained indefinitely and may be redistributed consistent with
-    this project or the license(s) involved.
+```bash
+bash scripts/policy-check_test.sh
+bash scripts/policy-check.sh
 ```
 
-The `policy` workflow rejects a pull request if any commit in it that is not a merge
-commit lacks a `Signed-off-by:` line. It checks that the line is present, not who
-signed. Whoever signs still certifies the DCO above.
+Both run in CI as the `policy` workflow: a `LICENSE` file, a 5 MiB cap on tracked
+files and on every blob a pull request adds, no `export-ignore`, `export-subst` or
+`filter` attributes, and a sign-off on every non-merge commit. The maintainer merges
+only after it passes.
 
-## Commit style
-
-Short imperative subject (about 70 characters), a prefix such as `fix:`, `feat:`,
-`docs:` or `ci:`, and a body that explains why the change is needed rather than what
-the diff already shows.
-
-## What we cannot accept
-
-We do not accept contributions that copy code or text from other projects unless their
-license is compatible with this repository's MIT license and the origin is stated in the
-pull request. If you are not sure, ask first.
-
-## Testing your changes
-
-For now the only check is `scripts/policy-check.sh`, which also runs in CI. It works
-from any directory. `scripts/policy-check_test.sh` tests the check itself; run it with
-`bash scripts/policy-check_test.sh`. This section will be completed as code lands.
+Taking part in this project means following the [code of conduct](CODE_OF_CONDUCT.md).
