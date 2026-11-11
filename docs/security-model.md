@@ -1,87 +1,67 @@
 # Security model
 
-> **Design intent.** Nothing here runs yet; each item becomes a fact only with code and
-> a test. A full threat model will come with the first release.
+> **Design intent.** The runtime is not released. Each item here becomes a fact only
+> with code and a test, and a full threat model will come with the first release. The
+> last section says what exists today.
 
-## Trust
+## What Sentinel assumes
 
-A plugin runs code with your user privileges; see Anthropic's
-[plugin security documentation](https://code.claude.com/docs/en/plugins/security)
-(checked 2026-11-06). The local program also runs as your user and starts containers
-through Docker, which is why it and the plugin will be published under MIT here. The
-hosted service is closed source, and this page makes no claim about its internals.
+- The code in a repository, and the instructions it carries, may be hostile. An agent
+  that reads them can be steered.
+- The agent itself may do the wrong thing, by error or because it was steered.
+- The server is yours, and whoever can reach its API can spend your model keys. The
+  API listens on the loopback interface only; your laptop reaches it through ssh.
 
-## A hostile repository
+## Keys stay out of the sandbox
 
-A repository can try to steer your agent, for example with instructions in a file or
-a hook that answers prompts on its own. The design limits the damage:
+- Model keys and the GitHub credential live in the gateway, on the server. They are
+  not in the sandbox and not on your laptop.
+- A sandbox receives a token that expires and is valid for its own run. The gateway
+  swaps it for the real key.
+- Before each model call the gateway reserves the worst-case cost. A call that would
+  take the run over its spending limit is refused, and the run pauses.
+- `git push` from a sandbox goes to the gateway, which adds the credential. The
+  sandbox never holds it.
+- Your laptop keeps one revocable token for the server.
 
-- the runner executes only in containers and mounts nothing but the copy of your code;
-- only your web session can approve a plan; the plugin token cannot, so a hook cannot
-  either;
-- no task closes without a runner report.
-
-These rules live in the hosted service, not in the commands, because your agent can
-reach the local program's tools directly. Task reservations expire, so a dead session
-does not hold a task.
-
-## Runner isolation
-
-Tests from Phase 1; your app and a browser from Phase 2.
+## The sandbox
 
 | Measure | What it means |
 | --- | --- |
-| Copy from a git archive | The code is copied from an archive of the branch's last commit, with LF line endings. Ignored files and environment files are not in the copy. |
-| `--cap-drop=ALL` | The container drops every Linux capability. |
-| `--security-opt=no-new-privileges` | Processes in the container cannot gain privileges. |
-| Non-root user | The commands run as a user without root. |
-| `--read-only` with tmpfs | The root filesystem is read-only; scratch space is in memory. |
-| `--memory` and `--pids-limit` | Memory and process count are limited. |
-| `--cpus` | Set only when the kernel supports it; see the limits below. |
-| No `--privileged`, no Docker socket | Containers are not privileged, and the socket is not mounted. |
-| Images pinned by digest | Every image is pinned by digest. |
+| No capabilities | The container drops every Linux capability. |
+| No new privileges | Processes inside cannot gain privileges. |
+| Not root | Commands run as a user without root. |
+| Read-only root | The root filesystem is read-only; scratch space is temporary. |
+| Limits | Memory, CPU and process count are limited. |
+| No Docker socket | The sandbox cannot start containers on the server. |
+| Network by allowlist | Traffic leaves through a proxy that allows listed hosts only. Package registries are one tier; source control is another, switched on only for the stacks that need it. |
+| gVisor | A second kernel boundary, by default where the server allows it (Phase 1). |
+| MicroVM | No network card at all, where the server has KVM (Phase 3). |
 
-- Dependencies come through a local proxy that allows only listed registries (npm and
-  PyPI in Phase 1), on a Docker network created with `--internal`.
-- Preparing the app (Phase 2) runs with `--network=none`.
-- The app and the browser (Phase 2) share a per-run `--internal` network with no route
-  to the internet.
-- Phase 1 supports Node and Python; other stacks are not planned. An unknown stack
-  fails closed: the run does not start.
+A container shares the kernel of the server. gVisor and microVMs exist to narrow that.
 
-## Credentials
+## Rules the agent cannot change
 
-- The Sentinel token is personal, revocable, limited to the plugin's interface and
-  unable to approve plans. It lives in the operating system keychain.
-- Login uses a device code: you sign in with GitHub in your browser and confirm the
-  code. If your client cannot open the URL, the URL and the code are printed.
-- The program does not read, store or forward your Claude or ChatGPT session, and
-  containers receive only the test variables you declare for that repository.
+- **No merge.** The agent opens a pull request. Merging is denied in every mode.
+- **PolicyGate denies by default.** An action that no rule allows does not happen.
+- **QA is separate.** The agent that tests a change is not the one that wrote it, and
+  it works on a clean copy. Without its approval no pull request opens.
+- **Repository instructions are data.** `AGENTS.md` and `CLAUDE.md` are read from the
+  commit the run started from, with a size limit, and given to the agent as content of
+  the repository. They cannot widen what PolicyGate allows.
+- **Client hooks fail closed** (Phase 2). A hook that errors blocks the action. Hooks
+  from a repository do not load until you approve their exact content.
 
-## Evidence
+## What exists today
 
-The runner builds its report on your machine and uploads it with a token that lives
-there, so the evidence is **reported**: it resists casual edits, not a determined user.
-In Phase 2 the hosted service will sign a receipt for each closed task, with a
-predicate type of its own for "reported", and the local program will include a
-verifier that works offline. The signature does not turn reported evidence into
-attested evidence.
+`sentinel doctor <destination>` is the only code that touches a server:
 
-## Known limits
-
-- Docker is required. Docker Desktop has its own
-  [license terms](https://docs.docker.com/subscription/desktop-license/) (checked
-  2026-11-06); alternatives compatible with the Docker API are untested.
-- On Windows with WSL2, containers get no CPU limit; the memory and process limits
-  remain, and `/sentinel:setup` warns about it.
-- Until the arm64 browser image exists (Phase 2), the browser runs emulated on Apple
-  Silicon.
-- The Brain engine, `codebase-memory-mcp` (MIT), may have no Windows arm64 build;
-  Windows on arm64 is to be confirmed.
-- If your agent's usage runs out in the middle of a plan, the run stops with a
-  warning, the reservation expires and the task goes back to waiting.
-- If Codex cannot restrict a subagent to a tool list, a Codex QA subagent could edit
-  files. Closing a task would still need a runner report.
+- it runs your own `ssh` with `BatchMode=yes`, so it never asks for a password, and
+  with `StrictHostKeyChecking=accept-new`, so a changed host key still fails;
+- a destination that `ssh` could read as an option is refused before `ssh` starts;
+- the probe travels on standard input and only reads; the one command it runs with
+  `sudo` is `sudo -n true`, to learn whether sudo works without a password;
+- `sentinel doctor` reads the exit status of `gh auth status` and discards its output.
 
 Report vulnerabilities as described in [SECURITY.md](../SECURITY.md), not in a public
 issue.

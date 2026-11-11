@@ -4,7 +4,8 @@ What does this change, and why is it needed? Link the issue where it was agreed.
 
 ## Test plan
 
-How did you check it? For example, the output of `bash scripts/policy-check.sh`.
+How did you check it? For example, the output of `go test ./...`, and for a change of
+behavior the test that fails without it.
 
 ## Checklist
 

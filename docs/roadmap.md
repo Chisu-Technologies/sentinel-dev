@@ -1,66 +1,64 @@
 # Roadmap
 
-> **Planned.** There are no dates. A phase starts when the previous one passes its
-> gate, and each gate is checked by running something. The plan can change.
+> **Planned.** There are no dates. A phase closes when its gate passes, and every gate
+> is something that is run, not a document. The plan can change.
 
-## Phase 0: the hosted service
+## Phase 0: measure before building
 
-- A free developer account, with sign-up outside checkout and protection against
-  abuse.
-- Device-code sign-in for the local program, and a personal token that cannot approve
-  plans.
-- An interface for the plugin to save plans, take tasks, and send runner reports and
-  the Brain projection.
-- Plans and tasks in the hosted service, a web page to approve a plan, and the board.
-  The contracts between the plugin and the service are written before any code.
+- How much memory the runtime takes on a clean 4 GB server, idle and per task.
+- The runtime installed over ssh on a kind of server it has not run on before.
+- The sandbox running under gVisor, and what it costs in speed.
+- Repository instructions (`AGENTS.md`, `CLAUDE.md`) reach the agent and QA.
 
-**Gate:** with a test token, a script saves a plan, a person approves it on the web,
-and the script closes a task with a runner report id; the board shows it done.
-Approving with the token fails, and so does closing a task without a report id.
+**Gate:** the three measurements are published with their numbers.
 
-## Phase 1: closed beta in Claude Code
+## Phase 1: one command, your server, a checked pull request
 
-- The local program: sign-in, the MCP server, and a test runner for Node and Python.
-- The commands login, setup, architect, approve, run, verify, plans, retry and
-  backlog, without the Brain; `verify` runs only the tests.
-- Plugin prompts written for Claude Code, the marketplace in this repository (its
-  name is not yet decided), and the list of invited people.
-- How the program reaches your machine, decided and tested on Windows, macOS and
-  Linux.
+- `sentinel` for Linux, macOS and Windows, with an installer.
+- `sentinel setup` on Ubuntu 22.04, Ubuntu 24.04 and Debian 12, with signed releases,
+  and `sentinel doctor`.
+- Sign-in with GitHub through `gh`; the laptop keeps one revocable token.
+- `sentinel run`, `runs`, `watch`, `pull` and `cancel`.
+- Pause and resume, stop everything, a spending limit checked before each model call,
+  and admission by memory.
+- Network access by tiers, and gVisor by default where the server allows it.
+- The source of the runtime and its images, public.
 
-**Gate:** external developers complete a plan in which every task is closed with a
-runner report, and every approval in the audit record comes from a web session.
+**Gate,** on a clean Ubuntu 24.04 server with 4 GB:
 
-## Phase 2: QA, reviewers and the Brain
+1. One command installs everything.
+2. `sentinel run` on a test repository opens a pull request with QA passed.
+3. The server is restarted in the middle of a run, and the run finishes by itself.
+4. A run that reaches its spending limit pauses, and one command resumes it.
+5. Three tasks in three repositories open their pull requests with the laptop closed.
 
-- The runner starts your app and a browser on a private network, with amd64 and arm64
-  images.
-- The QA subagent and the security and code reviewers, each with a restricted tool
-  list.
-- The full `run` and `verify`, the Brain indexer, the `brain` command, and planning
-  that consults the Brain.
-- The `evidence`, `runs` and `reopen` commands; signed receipts and their verifier.
-- The plugin for Codex, once these points are verified against Codex: whether it
-  loads a local MCP server bundled in a plugin (if not, `/sentinel:setup` registers
-  the program with `codex mcp add`), whether it shows the sign-in prompt for
-  third-party servers, where its plugin manifest goes, how long a tool call may take
-  (long operations are started and then polled), and whether a subagent can be
-  restricted to a tool list.
+## Phase 2: the agent in your terminal
 
-**Gate:** in a test repository with a planted flaw, an endpoint without
-authentication, the QA subagent or the security reviewer finds it and the task does
-not close.
+- An interactive session, with plan, edit and auto modes. Auto is not the default.
+- Client hooks. A hook that fails blocks the action.
+- A catalog of model providers, local models included.
+- `sentinel --from-claude-code`.
+- Evals with a published baseline, an audit log you can export, and backups.
 
-## Phase 3: public launch
+**Gate:** one eval task passes with three providers, one of them local; a hook stops a
+change to a forbidden path; `--from-claude-code` continues a real session; and a
+public table shows at least 20 eval tasks.
 
-- Third-party notices completed before any review rubric derived from another project
-  is published.
-- Submission to Anthropic's plugin directory, with Codex included in the launch.
-- A way to move a plan, its Brain and its history to a paid plan.
+## Phase 3: cells
 
-**Gate:** public sign-up holds up under a surge of registrations without abuse, and
-moving a plan to a paid plan works end to end.
+- A microVM without a network card where the server has KVM, a warm pool of sandboxes,
+  and a pause that keeps the memory of the sandbox.
 
-## Not planned
+**Gate:** runs in microVMs with no network card, a pause that keeps the processes
+alive, and the measurements published with their failures.
 
-Claude chat surfaces, Cowork until it has been tested, ChatGPT chat and Cursor.
+## Phase 4: teams and companies
+
+- Several servers, single sign-on, a central key vault, limits per team and policies
+  per user.
+- Installation on-premises, also without internet access, and private model endpoints.
+
+**Gate:** a team of three to eight people uses one server for two weeks with single
+sign-on, and one installation works without internet access.
+
+Phase 4 belongs to the paid editions and is not built in this repository.

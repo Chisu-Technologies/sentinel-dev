@@ -7,7 +7,7 @@ body:
       value: |
         Please open an issue before sending a pull request for a new feature or a
         behavior change. A pull request that nobody agreed to may be closed without
-        review. The hosted service is closed source and is not in scope here.
+        review. The paid editions are not in this repository and are not in scope here.
   - type: textarea
     id: problem
     attributes:

@@ -12,20 +12,22 @@ published or we agree on a date with you.
 
 ## Scope
 
-Nothing is released yet. Today the scope is this repository's workflows, scripts and
-configuration. From the first release it also covers:
+Today the scope is `sentinel`, the command-line client in this repository, and the
+workflows, scripts and configuration of the repository. From the first release it also
+covers:
 
-- the local program and the plugin;
-- the isolation of the containers that run your tests and your app;
-- anything sent to the hosted service beyond the README list of
-  [what will leave your machine](README.md#what-will-leave-your-machine-and-what-will-not).
+- the runtime that `sentinel setup` installs on a server;
+- the isolation of the sandbox each task runs in;
+- the gateway that holds the model keys and the GitHub credential;
+- anything sent to the Sentinel service beyond what the
+  [privacy page](docs/privacy.md) lists.
 
-The hosted service is closed source and not in this repository; report its
-vulnerabilities through the same channel.
+The paid editions are not in this repository; report their vulnerabilities through the
+same channel.
 
 Not a vulnerability: code in your own repository doing what it is written to do, or
 a known issue in a dependency without evidence that this project reaches the
-vulnerable code. Escaping the container isolation around your code is in scope.
+vulnerable code. Escaping the sandbox is in scope, and so is making the agent merge.
 
 ## Supported versions
 
