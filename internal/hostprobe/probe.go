@@ -94,7 +94,7 @@ func Probe(ctx context.Context, runner execx.Runner, dest string) (Facts, error)
 	if err := ValidateDestination(dest); err != nil {
 		return Facts{}, err
 	}
-	res, err := runner.Run(ctx, script, "ssh", sshArgs(dest)...)
+	res, err := runner.Run(ctx, execx.Command{Name: "ssh", Args: sshArgs(dest), Stdin: script})
 	if err != nil {
 		return Facts{}, fmt.Errorf("run ssh: %w", err)
 	}

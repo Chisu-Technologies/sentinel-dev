@@ -63,5 +63,12 @@ A container shares the kernel of the server. gVisor and microVMs exist to narrow
   `sudo` is `sudo -n true`, to learn whether sudo works without a password;
 - `sentinel doctor` reads the exit status of `gh auth status` and discards its output.
 
+`sentinel run --dry-run` runs git in your repository and nothing else:
+
+- it works on a copy of the index, so the repository is left as it was;
+- an error about the remote does not repeat its URL, which can carry a token;
+- the output of git is capped, so a huge difference stops the command instead of
+  filling memory.
+
 Report vulnerabilities as described in [SECURITY.md](../SECURITY.md), not in a public
 issue.

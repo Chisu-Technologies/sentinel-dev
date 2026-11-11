@@ -9,13 +9,6 @@ import (
 	"github.com/Chisu-Technologies/sentinel-dev/internal/execx"
 )
 
-// Call records one program a test subject tried to run.
-type Call struct {
-	Stdin string
-	Name  string
-	Args  []string
-}
-
 // Fake is a scripted execx.Runner.
 type Fake struct {
 	// Missing lists the programs LookPath does not find.
@@ -25,8 +18,8 @@ type Fake struct {
 	Results map[string]execx.Result
 	// Errors makes a program fail to start, keyed like Results.
 	Errors map[string]error
-	// Calls is every Run in order.
-	Calls []Call
+	// Calls is every command that was run, in order.
+	Calls []execx.Command
 }
 
 // LookPath implements execx.Runner.
@@ -38,17 +31,17 @@ func (f *Fake) LookPath(name string) (string, error) {
 }
 
 // Run implements execx.Runner.
-func (f *Fake) Run(_ context.Context, stdin string, name string, args ...string) (execx.Result, error) {
-	f.Calls = append(f.Calls, Call{Stdin: stdin, Name: name, Args: args})
-	line := strings.Join(append([]string{name}, args...), " ")
+func (f *Fake) Run(_ context.Context, cmd execx.Command) (execx.Result, error) {
+	f.Calls = append(f.Calls, cmd)
+	line := strings.Join(append([]string{cmd.Name}, cmd.Args...), " ")
 	if err, ok := f.Errors[line]; ok {
 		return execx.Result{}, err
 	}
-	if err, ok := f.Errors[name]; ok {
+	if err, ok := f.Errors[cmd.Name]; ok {
 		return execx.Result{}, err
 	}
 	if res, ok := f.Results[line]; ok {
 		return res, nil
 	}
-	return f.Results[name], nil
+	return f.Results[cmd.Name], nil
 }

@@ -1,7 +1,7 @@
 # How it works
 
-> **Planned.** This page describes the design. Today only `sentinel doctor` and
-> `sentinel version` exist. "Phase N" means order, not a date; see the
+> **Planned.** This page describes the design. The commands that exist today are in
+> [commands](commands.md). "Phase N" means order, not a date; see the
 > [roadmap](roadmap.md).
 
 Your laptop asks, your server works, and GitHub receives a pull request.

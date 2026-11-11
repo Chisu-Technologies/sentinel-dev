@@ -1,7 +1,7 @@
-<!-- translated-from: README.md @ a3c9c2e on 2026-11-11 -->
+<!-- translated-from: README.md @ adeef98 on 2026-11-11 -->
 [English](README.md) · Español
 
-> Traducción de [README.md](README.md) hecha a partir del commit `a3c9c2e`. Si difieren,
+> Traducción de [README.md](README.md) hecha a partir del commit `adeef98`. Si difieren,
 > prevalece el inglés. El resto de la documentación está en inglés.
 
 [![ci](https://github.com/Chisu-Technologies/sentinel-dev/actions/workflows/ci.yml/badge.svg)](https://github.com/Chisu-Technologies/sentinel-dev/actions/workflows/ci.yml)
@@ -17,8 +17,9 @@ corre en un sandbox que nunca tiene tus llaves. Un segundo agente, que no escrib
 cambio, lo prueba. El resultado es un pull request para que lo revises; el agente no
 puede hacer merge.
 
-> **Pre-alfa.** Hoy solo existen `sentinel doctor` y `sentinel version`. El resto de
-> esta página es el diseño previsto; mira la [hoja de ruta](docs/roadmap.md).
+> **Pre-alfa.** Hoy solo existen `sentinel doctor`, `sentinel run --dry-run` y
+> `sentinel version`. El resto de esta página es el diseño previsto; mira la
+> [hoja de ruta](docs/roadmap.md).
 
 ## Cómo va a funcionar
 
@@ -66,9 +67,14 @@ sentinel doctor
 sentinel doctor deploy@my-server
 ```
 
+```bash
+sentinel run --dry-run "fix the flaky login test"
+```
+
 La primera forma comprueba git, la CLI de GitHub y ssh en tu máquina. La segunda
 comprueba un servidor antes de instalar en él; solo lee, y no instala nada ahí. Cada
-comprobación fallida dice cómo arreglarla.
+comprobación fallida dice cómo arreglarla. La tercera muestra lo que una tarea
+enviaría desde el repositorio en el que estás, y no envía nada.
 
 ## Ediciones
 
@@ -91,7 +97,7 @@ modelo usaron y cómo terminaron. No recibirá prompts, código ni diffs. La lis
 no es definitiva; estará en la [página de privacidad](docs/privacy.md) antes de la
 primera versión, y lo que no esté en ella no se enviará.
 
-Hoy `sentinel doctor` y `sentinel version` no envían nada a Sentinel.
+Hoy ningún comando envía nada a Sentinel.
 
 ## Requisitos (previstos)
 

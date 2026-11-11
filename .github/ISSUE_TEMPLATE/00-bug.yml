@@ -5,8 +5,8 @@ body:
   - type: markdown
     attributes:
       value: |
-        Only `sentinel doctor` and `sentinel version` exist today. Please do not use
-        this form for security problems; see SECURITY.md.
+        The commands that exist today are listed in docs/commands.md. Please do not
+        use this form for security problems; see SECURITY.md.
   - type: input
     id: version
     attributes:
