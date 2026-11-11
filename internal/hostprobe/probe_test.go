@@ -107,7 +107,7 @@ func TestProbeRefusesAnOptionLikeDestinationWithoutRunningAnything(t *testing.T)
 		t.Fatal("Probe accepted a destination that ssh would parse as an option")
 	}
 	if len(fake.Calls) != 0 {
-		t.Fatalf("Probe ran %q before refusing the destination", fake.Calls)
+		t.Fatalf("Probe ran %+v before refusing the destination", fake.Calls)
 	}
 }
 
@@ -179,7 +179,7 @@ func TestTheScriptRunsOnThisMachine(t *testing.T) {
 	if runtime.GOOS != "linux" {
 		t.Skip("the probe targets Linux servers")
 	}
-	res, err := execx.OS{}.Run(context.Background(), script, "sh", "-s")
+	res, err := execx.OS{}.Run(context.Background(), execx.Command{Name: "sh", Args: []string{"-s"}, Stdin: script})
 	if err != nil || res.ExitCode != 0 {
 		t.Fatalf("sh -s: err=%v exit=%d stderr=%q", err, res.ExitCode, res.Stderr)
 	}

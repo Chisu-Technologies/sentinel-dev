@@ -39,7 +39,7 @@ func tool(ctx context.Context, runner execx.Runner, name, title, fix, versionArg
 	check.Status, check.Detail = OK, "installed"
 	// The version is a courtesy. A program that is installed but will not
 	// print one is still installed.
-	if res, err := runner.Run(ctx, "", name, versionArg); err == nil && res.ExitCode == 0 {
+	if res, err := runner.Run(ctx, execx.Command{Name: name, Args: []string{versionArg}}); err == nil && res.ExitCode == 0 {
 		// ssh -V writes to stderr; git and gh write to stdout.
 		if line := firstLine(res.Stdout + res.Stderr); line != "" {
 			check.Detail = line
@@ -53,7 +53,7 @@ func tool(ctx context.Context, runner execx.Runner, name, title, fix, versionArg
 // and none of that belongs in a report.
 func ghSignIn(ctx context.Context, runner execx.Runner) Check {
 	check := Check{ID: "gh-sign-in", Title: "GitHub sign-in"}
-	res, err := runner.Run(ctx, "", "gh", "auth", "status", "--hostname", "github.com")
+	res, err := runner.Run(ctx, execx.Command{Name: "gh", Args: []string{"auth", "status", "--hostname", "github.com"}})
 	if err != nil || res.ExitCode != 0 {
 		check.Status, check.Detail, check.Fix = Fail, "gh is not signed in to github.com", "Run: gh auth login"
 		return check
