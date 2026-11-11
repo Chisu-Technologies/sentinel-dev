@@ -13,6 +13,8 @@ Nothing has been released.
 
 - `sentinel doctor`: checks git, the GitHub CLI and ssh on this machine.
 - `sentinel doctor <destination>`: checks a server over ssh before installing on it.
+- `sentinel run --dry-run "<task>"`: shows what a task would send from the current
+  repository, and sends nothing.
 - `sentinel version`.
 
 ### Changed

@@ -5,9 +5,10 @@
 
 ## Today
 
-`sentinel doctor` and `sentinel version` send nothing to Sentinel.
-`sentinel doctor <destination>` connects to the server you name, with your own `ssh`,
-and to nothing else.
+No command sends anything to Sentinel. `sentinel doctor <destination>` connects to the
+server you name, with your own `ssh`, and to nothing else. `sentinel run --dry-run`
+reads your repository with git and connects to nothing; it prints file names, not
+file contents.
 
 ## The open edition
 

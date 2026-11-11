@@ -10,8 +10,10 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/Chisu-Technologies/sentinel-dev/internal/buildinfo"
+	"github.com/Chisu-Technologies/sentinel-dev/internal/checkout"
 	"github.com/Chisu-Technologies/sentinel-dev/internal/doctor"
 	"github.com/Chisu-Technologies/sentinel-dev/internal/execx"
 )
@@ -30,6 +32,9 @@ type Env struct {
 	Stderr io.Writer
 	Runner execx.Runner
 	Build  buildinfo.Info
+	// Dir is the directory the command was started in. Empty means the
+	// current directory of the process.
+	Dir string
 }
 
 const usage = `sentinel is the Sentinel command-line client.
@@ -40,9 +45,10 @@ Usage:
   sentinel <command> [flags]
 
 Commands:
-  doctor [destination]   Check this machine, or a server before installing on it
-  version                Print the version
-  help                   Show this help
+  doctor [destination]      Check this machine, or a server before installing on it
+  run --dry-run "<task>"    Show what a task would send from this repository
+  version                   Print the version
+  help                      Show this help
 
 Run "sentinel <command> -h" for the flags of a command.
 `
@@ -61,6 +67,8 @@ func Run(ctx context.Context, args []string, env Env) int {
 		return runVersion(rest, env)
 	case "doctor":
 		return runDoctor(ctx, rest, env)
+	case "run":
+		return runRun(ctx, rest, env)
 	default:
 		fmt.Fprintf(env.Stderr, "sentinel: unknown command %q\n\n%s", name, usage)
 		return ExitUsage
@@ -84,6 +92,16 @@ func parse(fs *flag.FlagSet, args []string, env Env, synopsis string) int {
 	return -1
 }
 
+func writeJSON(env Env, value any) int {
+	enc := json.NewEncoder(env.Stdout)
+	enc.SetIndent("", "  ")
+	if err := enc.Encode(value); err != nil {
+		fmt.Fprintf(env.Stderr, "sentinel: %v\n", err)
+		return ExitFailed
+	}
+	return ExitOK
+}
+
 func runVersion(args []string, env Env) int {
 	fs := flag.NewFlagSet("version", flag.ContinueOnError)
 	asJSON := fs.Bool("json", false, "print the build information as JSON")
@@ -95,13 +113,7 @@ func runVersion(args []string, env Env) int {
 		return ExitUsage
 	}
 	if *asJSON {
-		enc := json.NewEncoder(env.Stdout)
-		enc.SetIndent("", "  ")
-		if err := enc.Encode(env.Build); err != nil {
-			fmt.Fprintf(env.Stderr, "sentinel: %v\n", err)
-			return ExitFailed
-		}
-		return ExitOK
+		return writeJSON(env, env.Build)
 	}
 	fmt.Fprintf(env.Stdout, "sentinel %s (%s, %s/%s)\n", env.Build.Version, env.Build.Go, env.Build.OS, env.Build.Arch)
 	return ExitOK
@@ -126,9 +138,8 @@ func runDoctor(ctx context.Context, args []string, env Env) int {
 	}
 
 	if *asJSON {
-		if err := report.WriteJSON(env.Stdout); err != nil {
-			fmt.Fprintf(env.Stderr, "sentinel: %v\n", err)
-			return ExitFailed
+		if code := writeJSON(env, report); code != ExitOK {
+			return code
 		}
 	} else {
 		report.WriteText(env.Stdout)
@@ -137,4 +148,74 @@ func runDoctor(ctx context.Context, args []string, env Env) int {
 		return ExitFailed
 	}
 	return ExitOK
+}
+
+// dryRun is what `sentinel run --dry-run` reports. The patch itself is not
+// printed: it is the content of the working tree.
+type dryRun struct {
+	Task string `json:"task"`
+	checkout.Package
+	PatchBytes int `json:"patch_bytes"`
+}
+
+func runRun(ctx context.Context, args []string, env Env) int {
+	fs := flag.NewFlagSet("run", flag.ContinueOnError)
+	dry := fs.Bool("dry-run", false, "show what would be sent, and send nothing")
+	asJSON := fs.Bool("json", false, "print the result as JSON")
+	if code := parse(fs, args, env, `run --dry-run [--json] "<task>"`); code >= 0 {
+		return code
+	}
+	task := strings.TrimSpace(fs.Arg(0))
+	if fs.NArg() != 1 || task == "" {
+		fmt.Fprintln(env.Stderr, `sentinel run takes the task as one argument, for example: sentinel run --dry-run "fix the flaky login test"`)
+		return ExitUsage
+	}
+	if !*dry {
+		// Said plainly instead of pretending: there is no released runtime to
+		// send a task to yet.
+		fmt.Fprintln(env.Stderr, "sentinel run cannot send a task yet: the runtime it sends to is not released.")
+		fmt.Fprintln(env.Stderr, "Add --dry-run to see what would be sent from this repository.")
+		return ExitFailed
+	}
+
+	pkg, err := checkout.Build(ctx, env.Runner, env.Dir)
+	if err != nil {
+		fmt.Fprintf(env.Stderr, "sentinel: %v\n", err)
+		return ExitFailed
+	}
+	result := dryRun{Task: task, Package: pkg, PatchBytes: len(pkg.Patch)}
+	if *asJSON {
+		return writeJSON(env, result)
+	}
+	fmt.Fprintf(env.Stdout, "Task         %s\n", task)
+	fmt.Fprintf(env.Stdout, "Repository   %s\n", pkg.Repository)
+	fmt.Fprintf(env.Stdout, "Base commit  %s\n", pkg.BaseCommit)
+	if len(pkg.Files) == 0 {
+		fmt.Fprintln(env.Stdout, "Patch        none: GitHub already has everything in this working tree")
+	} else {
+		fmt.Fprintf(env.Stdout, "Patch        %s, %s\n", count(len(pkg.Files), "file"), size(len(pkg.Patch)))
+		for _, file := range pkg.Files {
+			fmt.Fprintf(env.Stdout, "  %s\n", file)
+		}
+	}
+	fmt.Fprintln(env.Stdout, "\nNothing was sent: this was a dry run.")
+	return ExitOK
+}
+
+func count(n int, noun string) string {
+	if n == 1 {
+		return "1 " + noun
+	}
+	return fmt.Sprintf("%d %ss", n, noun)
+}
+
+func size(bytes int) string {
+	switch {
+	case bytes < 1<<10:
+		return fmt.Sprintf("%d bytes", bytes)
+	case bytes < 1<<20:
+		return fmt.Sprintf("%.1f KiB", float64(bytes)/(1<<10))
+	default:
+		return fmt.Sprintf("%.1f MiB", float64(bytes)/(1<<20))
+	}
 }
