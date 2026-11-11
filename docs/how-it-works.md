@@ -1,92 +1,73 @@
 # How it works
 
-> **Planned.** This page describes the design; nothing on it exists yet. "Phase N"
-> means order, not a date; see the [roadmap](roadmap.md).
+> **Planned.** This page describes the design. Today only `sentinel doctor` and
+> `sentinel version` exist. "Phase N" means order, not a date; see the
+> [roadmap](roadmap.md).
 
-Your coding agent does the thinking, your machine does the running, and the hosted
-service keeps the record.
+Your laptop asks, your server works, and GitHub receives a pull request.
 
 ```text
-  your machine                                         Sentinel
- +--------------------------------------------+     +----------------------+
- |  Your coding agent (Claude Code, later     |     |  Hosted service      |
- |  Codex), in your interactive session       |     |  (closed source)     |
- |      |                                     |     |                      |
- |      | loads                               |     |  plans, task state,  |
- |      v                                     |     |  Brain projection,   |
- |  Plugin `sentinel`  (MIT)                  |     |  runner reports,     |
- |      |                                     |     |  web board           |
- |      | starts, as an MCP server            |     |                      |
- |      v                                     |     |                      |
- |  Local program  (MIT)  ------------------------>  |                      |
- |      |   plan, task status, reports,       |     +----------------------+
- |      |   Brain projection                  |                ^
- |      v                                     |                |
- |  Docker: tests, your app, a browser        |     your web session approves
- +--------------------------------------------+     plans and reads the board
+ your laptop                 your server
++----------------+   ssh    +----------------------------------------------------+
+| sentinel       | -------> | API           runs, events, pause, resume, stop    |
+|                |  tunnel  | Orchestrator  saves each step; continues after a   |
+| one revocable  |          |               restart                              |
+| token          |          | Gateway       holds the model keys and the GitHub  |
++----------------+          |               credential; checks the limit before  |
+                            |               each model call                      |
+                            | Sandbox       one per task; no keys; network by    |
+                            |               allowlist                            |
+                            | QA            a separate agent; runs before the    |
+                            |               pull request                         |
+                            | PolicyGate    denies by default; no merge          |
+                            +----------------------------------------------------+
+                                                   |
+                                                   v
+                                        GitHub: a pull request
 ```
 
-- **Plugin `sentinel`**: the `/sentinel:*` commands, three subagents and the
-  configuration that starts the local program. The commands teach your agent the
-  method; the rules that matter are enforced by the hosted service.
-- **Local program**: a public binary the plugin starts as an MCP server. It holds the
-  login, the MCP server, the runner, the Brain indexer and a receipt verifier.
-- **Hosted service**: stores plans, task state, the Brain projection and runner
-  reports, and draws the web board. It needs a free account. On the free plan it runs
-  nothing for you: no container and no machine.
+## The parts
 
-The Brain is a map of your repository: which files and symbols exist and how they
-relate. It is built on your machine; only a projection is sent.
+- **`sentinel`**, the command on your laptop. It packages the task, sends it through an
+  ssh tunnel and shows you the run. It holds one revocable token. Your model keys and
+  your GitHub credential are not kept on the laptop.
+- **The runtime**, on your server. It is the API, the orchestrator, the gateway, the
+  sandboxes and QA. `sentinel setup` installs it from signed releases.
+- **The gateway.** The only part that holds keys. A sandbox gets a token that expires,
+  valid for its own run. The gateway swaps it for the real key, and refuses a model
+  call that would take the run over its spending limit.
+- **The sandbox.** One per task. It has the code and no credentials. Its network goes
+  through an allowlist. See the [security model](security-model.md).
+- **QA.** A second agent that did not write the change. It works on a clean copy, runs
+  the tests and reviews the diff. Without its approval no pull request opens.
+- **PolicyGate.** The rules every action passes through. It denies by default, and
+  merging is always denied.
 
-## Who does the thinking
+## A run, from task to pull request
 
-Your own agent, with your own membership, inside your interactive session. The local
-program does not launch headless sessions of your agent, modify its program or touch
-its credentials, and usage counts against your own plan. These rules follow
-Sentinel's reading of the vendors' terms, which are theirs to set and interpret; read
-them yourself, for example
-[Anthropic's legal and compliance page](https://code.claude.com/docs/en/legal-and-compliance)
-(checked 2026-11-06). Nothing in this repository states that a particular use complies
-with them.
+1. `sentinel run "<task>"` sends the task with your working tree as a patch on top of
+   a commit GitHub already has.
+2. The server queues the run. If there is no memory for another sandbox, the run waits
+   instead of failing.
+3. The agent works in its sandbox. The instructions your repository carries in
+   `AGENTS.md` and `CLAUDE.md` are given to it as data from the repository, with a
+   size limit.
+4. QA tests the result on a clean copy. A rejection sends the work back to the agent,
+   up to a limit of rounds.
+5. With QA passed, the server pushes a branch and opens the pull request. You review
+   and merge it yourself.
 
-Sentinel works only while your session is open.
-
-## A task, from plan to done
-
-1. Your agent, acting as the architect, asks what it needs and saves a plan of stages,
-   sprints and tasks, checked against a published schema.
-2. You approve the plan on the web with your own session. The plugin token cannot
-   approve.
-3. Your agent takes the next task with a reservation that expires; if the session
-   dies, the task goes back to waiting.
-4. It implements the task in a git worktree, on the local branch `sentinel/<task>`.
-5. The runner tests a copy of the branch's last commit in Docker and uploads a report.
-   The hosted service closes the task only with that report's identifier.
-6. A red report starts another attempt, up to a limit of correction rounds; after
-   that the task is marked as failed.
-
-The board has four columns: in progress, needs a decision, needs attention and done;
-tasks not yet started sit in the backlog. A task marked as human waits in "needs a
-decision" until you mark it done on the web. Pushing the branch and opening a pull
-request stay your decision.
-
-## Evidence
-
-The runner builds its report on your machine and uploads it with a token that lives
-there; the hosted service computes the verdict. That resists casual edits, not a
-determined user, so the evidence is **reported**, not attested. Signed receipts for
-closed tasks (Phase 2) are labeled reported too.
+Each step is saved when it completes. A run that reaches its spending limit pauses and
+waits for you; `sentinel resume` continues it with a larger limit or another model.
+`sentinel stop` halts every run on the server, and stays in force after a restart.
 
 ## What is open
 
-| Part | License |
-| --- | --- |
-| Plugin: commands, subagents, review rubrics | MIT, in this repository |
-| Local program: login, MCP server, runner, Brain indexer, receipt verifier | MIT, in this repository |
-| Formats: plan, runner report, Brain graph, evidence | MIT, as published schemas; a published v1 is not edited |
-| Hosted service | Closed source |
-| Engine of the paid plans, and the Heads | Closed source, not in this repository |
+| Part | Where | License |
+| --- | --- | --- |
+| `sentinel`, the command | This repository | Apache-2.0 |
+| The runtime: API, orchestrator, gateway, sandbox, QA, PolicyGate | Published with the first release | Apache-2.0 |
+| Hosted, Teams and Enterprise editions | Not in this repository | Commercial |
 
-On the paid plans the work is meant to run without you present; their engine is not
-part of this project. Because the hosted service is closed, what you can audit is
-what the open parts send to it.
+Whatever runs on your laptop or on your server is open. What is paid is running it for
+you, and what a team or a company needs on top.

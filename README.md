@@ -1,93 +1,110 @@
 <!-- Insert new languages in order by language code. -->
 English · [Español](README.es.md)
 
+[![ci](https://github.com/Chisu-Technologies/sentinel-dev/actions/workflows/ci.yml/badge.svg)](https://github.com/Chisu-Technologies/sentinel-dev/actions/workflows/ci.yml)
 [![policy](https://github.com/Chisu-Technologies/sentinel-dev/actions/workflows/policy.yml/badge.svg)](https://github.com/Chisu-Technologies/sentinel-dev/actions/workflows/policy.yml)
 
-# Sentinel for developers
+# Sentinel
 
-**Your agent writes; Sentinel proves it works.**
+**Hand a task to an agent on your own server. Get back a pull request that a separate
+QA tested before it was opened.**
 
-Sentinel for developers checks the work of your coding agent. It will run your tests,
-start your app and drive a real browser against it, then report what actually happened
-instead of what the agent claims happened.
+Sentinel runs coding agents on a machine you control. Each task runs in a sandbox that
+never holds your keys. A second agent, which did not write the change, tests it. The
+result is a pull request for you to review; the agent cannot merge.
 
-> **Pre-alpha.** Nothing is installable yet; this repository holds the planned design.
-> The beta will be by invitation only, and there is no way to request an invitation
-> yet. Access is controlled by Sentinel, not by this repository being public.
+> **Pre-alpha.** Only `sentinel doctor` and `sentinel version` exist today. The rest of
+> this page is the planned design; see the [roadmap](docs/roadmap.md).
 
 ## How it will work
 
-- **A plugin** for Claude Code, and later Codex. Your agent does the thinking, in your
-  own session and with your own membership. Sentinel will not ask for an API key.
-- **A local program**, started by the plugin as an MCP server. It will run your tests,
-  your app and a browser in Docker on your machine.
-- **A free Sentinel account** that will store the plan, the Brain projection (a map of
-  your repository's files and symbols) and the evidence.
+```console
+$ sentinel setup deploy@my-server     # install the runtime on your server, over ssh
+$ sentinel run "fix the flaky login test"
+$ sentinel watch                      # follow the run from any terminal
+$ sentinel pull                       # fetch the branch of the pull request
+```
 
-A day of work: plan with `/sentinel:architect`, approve the plan on the web, implement
-and test with `/sentinel:run`, then review the local branch yourself. See
-[commands](docs/commands.md) and [how it works](docs/how-it-works.md).
+- **Your laptop** runs the `sentinel` command, on Linux, macOS or Windows. It keeps
+  one revocable token and nothing else.
+- **Your server** does the work: Ubuntu 22.04, Ubuntu 24.04 or Debian 12, installed with
+  one command over ssh. Model keys and the GitHub credential stay there, outside the
+  sandbox. A run goes on when you close the laptop.
+- **GitHub** receives a pull request, opened only after QA passed.
 
-## What will leave your machine, and what will not
+Read [how it works](docs/how-it-works.md) and the [commands](docs/commands.md).
 
-Sent to Sentinel:
+## What it is built around
 
-- the repository name and remote, without any user or token the URL may carry;
-- the plan and the status of its tasks;
-- runner reports: command, exit code, duration, a truncated tail of the output and
-  digests. The tail is whatever your own commands print, so a test failure or a stack
-  trace can contain lines of code. Secret filtering is best-effort, not a guarantee;
-- a projection of the Brain: the names of files and symbols and how they relate, not
-  their contents, up to 300 nodes and 64 KB.
+- **A pull request that was checked.** A QA agent separate from the one that wrote the
+  change runs the tests and reviews the diff before the pull request opens.
+- **Runs that are not lost.** Each step of a run is saved when it completes, so a run
+  continues after the server restarts. Restarting the server in the middle of a run is
+  one of the tests that closes Phase 1; it has not been run yet.
+- **Rules that are on without configuring anything.** A spending limit per run, a
+  hardened sandbox and the ban on merging. A run that reaches its limit pauses, and you
+  resume it with a larger limit or another model.
 
-Sentinel never uploads your source files or your diffs, and it does not read your
-environment files or credentials; anything your commands print is subject to the
-best-effort filter above. Screenshots and full app logs stay on your
-machine unless you turn on uploading for that repository.
+## Try what exists
 
-Your Sentinel token will live in the operating system keychain. The program will never
-read, store or forward your Claude or ChatGPT session, and containers will receive no
-secrets other than test variables you declare for that repository.
+With Go 1.26 or newer:
 
-For the full picture, including what is not yet decided, read the
-[privacy page](docs/privacy.md).
+```bash
+go install github.com/Chisu-Technologies/sentinel-dev/cmd/sentinel@latest
+```
 
-## Evidence is reported, not attested
+```bash
+sentinel doctor
+```
 
-Your machine will run the checks and report the results, so the evidence can be forged
-on your machine. Sentinel labels it "reported", not "attested". See the
-[security model](docs/security-model.md).
+```bash
+sentinel doctor deploy@my-server
+```
 
-## What is open
+The first form checks git, the GitHub CLI and ssh on your machine. The second checks a
+server before you install on it; it only reads, and installs nothing there. Each
+failed check prints how to fix it.
 
-The plugin, the local program and the published formats (plan, runner report, Brain
-graph, evidence) will be MIT-licensed in this repository. The hosted service, the
-engine behind the paid plans and the Heads are closed source and are not here.
+## Editions
+
+| Edition | For | Paid with |
+| --- | --- | --- |
+| Open | One person or a small team, on their own server, with their own model keys | Nothing; Apache-2.0 |
+| Hosted | People who do not want to run a server | A subscription |
+| Teams | Several servers, single sign-on, audit, a central key vault, limits per team | A yearly license |
+| Enterprise | On-premises or private cloud, also without internet access | A contract |
+
+QA, durable runs and the ban on merging are part of the open edition. The paid editions
+are planned and are not in this repository.
+
+## What leaves your machine
+
+In the open edition your code and your prompts go to three places: your server, GitHub
+and the model provider you choose. The Sentinel service will receive a GitHub sign-in
+and usage counts, such as how many runs there were, how long they took, which model
+they used and how they ended. It will not receive prompts, code or diffs. The exact
+list is not final; it will be on the [privacy page](docs/privacy.md) before the first
+release, and what is not on it will not be sent.
+
+Today `sentinel doctor` and `sentinel version` send nothing to Sentinel.
 
 ## Requirements (planned)
 
-- Docker.
-- Claude Code in the terminal, the only host of the closed beta; the minimum version
-  will be confirmed at release. The desktop app's Code tab is planned and unverified.
-- Windows, macOS or Linux, on x64 or arm64; Windows on arm64 is to be confirmed. None
-  of them is tested yet, and how the program will be delivered is not yet decided.
-- Usage limits on the free plan will apply; they are not published yet.
-- A GitHub account, to sign in.
+- On your laptop: git, the GitHub CLI (`gh`) and an ssh client.
+- On your server: Ubuntu 22.04, Ubuntu 24.04 or Debian 12, on x86_64 or arm64, with
+  4 GB of memory and either root or sudo without a password.
+- A GitHub account, and a key for the model provider you choose.
 
-## Roadmap
-
-Four phases, in order and without dates: the hosted service side, a closed beta in
-Claude Code, QA with reviewers and the Brain, then the public launch. See the
-[roadmap](docs/roadmap.md).
+The memory figure is the target Sentinel is being sized for, not yet a measured
+minimum.
 
 ## License and contributing
 
-MIT; see [LICENSE](LICENSE) and [THIRD_PARTY-NOTICES.md](THIRD_PARTY-NOTICES.md).
-Report vulnerabilities privately as described in [SECURITY.md](SECURITY.md).
-Contributions need a DCO sign-off; see [CONTRIBUTING.md](CONTRIBUTING.md) and the
-[code of conduct](CODE_OF_CONDUCT.md).
+Apache-2.0; see [LICENSE](LICENSE), [NOTICE](NOTICE) and
+[THIRD_PARTY-NOTICES.md](THIRD_PARTY-NOTICES.md). Report vulnerabilities privately as
+described in [SECURITY.md](SECURITY.md). Contributions need a DCO sign-off; see
+[CONTRIBUTING.md](CONTRIBUTING.md) and the [code of conduct](CODE_OF_CONDUCT.md).
 
 ---
 
-Claude Code is a product of Anthropic and Codex of OpenAI; Sentinel is not affiliated
-with either. Sentinel for developers is not related to Microsoft Sentinel.
+Sentinel is not related to Microsoft Sentinel.

@@ -1,0 +1,4 @@
+# Binaries built at the repository root
+/sentinel
+/sentinel.exe
+/dist/

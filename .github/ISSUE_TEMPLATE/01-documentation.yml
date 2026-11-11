@@ -5,9 +5,8 @@ body:
   - type: markdown
     attributes:
       value: |
-        Sentinel for developers is pre-alpha and nothing is installable yet, so the
-        documentation describes a planned design. Please do not use this form for
-        security problems; see SECURITY.md.
+        Sentinel is pre-alpha, and most of the documentation describes a planned
+        design. Please do not use this form for security problems; see SECURITY.md.
   - type: input
     id: page
     attributes:
