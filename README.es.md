@@ -18,8 +18,8 @@ cambio, lo prueba. El resultado es un pull request para que lo revises; el agent
 puede hacer merge.
 
 > **Pre-alfa.** Hoy solo existen `sentinel doctor`, `sentinel run --dry-run`,
-> `sentinel verify` y `sentinel version`. El resto de esta página es el diseño
-> previsto; mira la [hoja de ruta](docs/roadmap.md).
+> `sentinel runs`, `sentinel verify`, `sentinel version` y `sentinel watch`. El resto
+> de esta página es el diseño previsto; mira la [hoja de ruta](docs/roadmap.md).
 
 ## Cómo va a funcionar
 
@@ -104,9 +104,11 @@ modelo usaron y cómo terminaron. No recibirá prompts, código ni diffs. La lis
 no es definitiva; estará en la [página de privacidad](docs/privacy.md) antes de la
 primera versión, y lo que no esté en ella no se enviará.
 
-Hoy `sentinel verify` es el único comando que contacta con un servidor de Sentinel, el
-de `SENTINEL_URL`. Envía el nombre del repositorio, el número del pull request y tu
-llave de API, y no lee ni envía tu árbol de trabajo.
+Hoy `sentinel verify`, `sentinel runs` y `sentinel watch` son los comandos que
+contactan con un servidor de Sentinel, el de `SENTINEL_URL`. Envían tu llave de API, y
+el nombre del repositorio y el número del pull request (`verify`) o el id de un run
+(`watch`); leen el estado de tus runs, y `watch` también sus últimas líneas de log.
+Ninguno lee ni envía tu árbol de trabajo.
 
 ## Requisitos (previstos)
 

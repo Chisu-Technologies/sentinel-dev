@@ -9,8 +9,10 @@
 | `sentinel doctor` | Check that git, the GitHub CLI and ssh are installed on this machine, and that `gh` is signed in to github.com. |
 | `sentinel doctor <destination>` | Check a server before installing on it: operating system, architecture, privileges, systemd, memory and Docker. It only reads: it installs and configures nothing on the server. |
 | `sentinel run --dry-run "<task>"` | Show what a task would send from this repository: the GitHub repository, the commit GitHub already has, and the files in the patch. It sends nothing. |
+| `sentinel runs` | List the latest runs of a Sentinel server: status, repository, pull request, cost, start and title. |
 | `sentinel verify <pull request>` | Ask a Sentinel server to verify an existing pull request, wait, and print the verdict. |
 | `sentinel version` | Print the version. |
+| `sentinel watch <run id>` | Follow a run of a Sentinel server until it ends, printing its status changes and its log. |
 
 - `<destination>` is what you would give to `ssh`: `user@host`, or a `Host` from your
   ssh config. `sentinel` runs your own `ssh` and never asks for a password; if `ssh`
@@ -47,6 +49,23 @@
     `--no-wait` succeeded; `1` for any other verdict, a run that failed or was
     stopped, a timeout, a missing variable or an error from the server; `2` when the
     command line was wrong.
+- `sentinel runs` and `sentinel watch` use the same `SENTINEL_URL` and
+  `SENTINEL_API_KEY` as `sentinel verify`, and the same rules for them.
+  - `sentinel runs` prints a header and one line per run, newest first; it prints
+    `No runs yet.` when there are none. `--limit <n>` is how many to list, from 1 to
+    100, `20` by default. `--json` prints the runs as a JSON array with the same
+    fields.
+  - `sentinel watch` takes the id of one run, as `sentinel runs` shows it. It asks for
+    the state of the run every 5 seconds and prints each change of status to
+    standard error. It prints to standard output the recent lines of the run log, as
+    the server gives them, and only the lines that are new since the last time.
+    `--timeout <duration>` is how long to follow, `2h` by default; the run continues
+    on the server after it, and so after Ctrl-C.
+  - Exit status of `sentinel runs`: `0` on success, `1` for a missing variable or an
+    error from the server, `2` when the command line was wrong.
+  - Exit status of `sentinel watch`: `0` when the run ended as `completed`; `1` for
+    any other end, a timeout, a run the server does not know, a missing variable or
+    an error from the server; `2` when the command line was wrong.
 
 ## Planned
 
@@ -58,8 +77,6 @@
 | `sentinel setup <destination>` | Install the runtime on your server over ssh, from signed releases. It asks only for what the server lacks, and running it again is safe. | 1 |
 | `sentinel login` | Sign in with GitHub, reusing the session of `gh`. | 1 |
 | `sentinel run "<task>"` | Send the task and the patch that `--dry-run` shows, and start a run. | 1 |
-| `sentinel runs` | List the runs. | 1 |
-| `sentinel watch [run]` | Follow a run. | 1 |
 | `sentinel pull [run]` | Fetch the branch of the pull request. | 1 |
 | `sentinel cancel <run>` | Cancel a run. | 1 |
 | `sentinel resume <run>` | Continue a paused run with a larger limit or another model. | 1 |

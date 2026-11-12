@@ -5,7 +5,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"net/http"
 	"net/url"
 	"regexp"
 	"strconv"
@@ -137,27 +136,12 @@ func runVerify(ctx context.Context, args []string, env Env) int {
 		}
 	}
 
-	rawURL := env.getenv("SENTINEL_URL")
 	if *dry {
-		return verifyDryRunReport(env, pr, *base, rawURL, *asJSON)
+		return verifyDryRunReport(env, pr, *base, env.getenv("SENTINEL_URL"), *asJSON)
 	}
-	if rawURL == "" {
-		fmt.Fprintln(env.Stderr, "sentinel verify needs SENTINEL_URL, the address of your Sentinel server.")
-		return ExitFailed
-	}
-	key := env.getenv("SENTINEL_API_KEY")
-	if key == "" {
-		fmt.Fprintln(env.Stderr, "sentinel verify needs SENTINEL_API_KEY, an API key of your Sentinel server. It is read only from the environment.")
-		return ExitFailed
-	}
-	httpClient := env.HTTP
-	if httpClient == nil {
-		httpClient = &http.Client{Timeout: 30 * time.Second}
-	}
-	client, err := server.New(rawURL, key, httpClient, "sentinel/"+env.Build.Version)
-	if err != nil {
-		fmt.Fprintf(env.Stderr, "sentinel verify: SENTINEL_URL or SENTINEL_API_KEY: %v\n", err)
-		return ExitFailed
+	client, code := newServerClient(env, "verify")
+	if code >= 0 {
+		return code
 	}
 	return verify(ctx, env, client, pr, *base, *noWait, *timeout, *asJSON)
 }
@@ -227,44 +211,25 @@ func verify(ctx context.Context, env Env, client *server.Client, pr pullRequest,
 	stillRunning := func(why string) int {
 		return fail("%s Run %s continues on the server.", why, run.ID)
 	}
-	waitCtx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
-	sleep := env.Sleep
-	if sleep == nil {
-		sleep = sleepContext
-	}
-	// classify tells the three ways waiting stops apart. A deadline error that
-	// did not come from the overall wait (the 30 second limit of one request)
-	// is an ordinary failure.
-	classify := func(err error, fromSleep bool) string {
-		switch {
-		case ctx.Err() != nil:
-			return "Interrupted."
-		case waitCtx.Err() != nil || (fromSleep && errors.Is(err, context.DeadlineExceeded)):
-			return "Gave up waiting after " + timeout.String() + "."
-		}
-		return client.Clean(err.Error(), server.MaxDetail) + "."
-	}
-
-	for !server.IsTerminal(run.Status) {
-		if err := sleep(waitCtx, pollInterval); err != nil {
-			return stillRunning(classify(err, true))
-		}
-		next, err := client.Run(waitCtx, run.ID)
-		if err != nil {
-			return stillRunning(classify(err, false))
-		}
+	w := newWaiter(ctx, env, client, timeout)
+	defer w.cancel()
+	final, why := w.until(run.ID, run.Status, func(next server.Run) error {
 		if next.Status != run.Status {
 			fmt.Fprintf(env.Stderr, "Run %s: %s\n", run.ID, client.Clean(next.Status, 64))
 		}
 		run.Status = next.Status
+		return nil
+	})
+	if why != "" {
+		return stillRunning(why)
 	}
+	run.Status = final
 	result.Status = client.Clean(run.Status, 64)
 
-	stories, err := client.Stories(waitCtx, run.ID)
+	stories, err := client.Stories(w.ctx, run.ID)
 	endedWithoutVerdict := run.Status != server.StatusCompleted && run.Status != server.StatusBlocked
 	if err != nil && !endedWithoutVerdict {
-		return stillRunning(classify(err, false))
+		return stillRunning(w.classify(err, false))
 	}
 	var story server.Story
 	if err == nil && len(stories) > 0 {
