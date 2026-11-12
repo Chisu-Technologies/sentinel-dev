@@ -6,6 +6,7 @@
 
 | Command | What it does |
 | --- | --- |
+| `sentinel cancel <run id>` | Stop a run of a Sentinel server. |
 | `sentinel doctor` | Check that git, the GitHub CLI and ssh are installed on this machine, and that `gh` is signed in to github.com. |
 | `sentinel doctor <destination>` | Check a server before installing on it: operating system, architecture, privileges, systemd, memory and Docker. It only reads: it installs and configures nothing on the server. |
 | `sentinel run --dry-run "<task>"` | Show what a task would send from this repository: the GitHub repository, the commit GitHub already has, and the files in the patch. It sends nothing. |
@@ -49,8 +50,15 @@
     `--no-wait` succeeded; `1` for any other verdict, a run that failed or was
     stopped, a timeout, a missing variable or an error from the server; `2` when the
     command line was wrong.
-- `sentinel runs` and `sentinel watch` use the same `SENTINEL_URL` and
-  `SENTINEL_API_KEY` as `sentinel verify`, and the same rules for them.
+- `sentinel cancel`, `sentinel runs` and `sentinel watch` use the same `SENTINEL_URL`
+  and `SENTINEL_API_KEY` as `sentinel verify`, and the same rules for them.
+  - `sentinel cancel` takes the id of one run, as `sentinel runs` shows it. It reads
+    the run and, when the run is still going, asks the server to stop it. A run that
+    already ended is left as it is. Some servers stop the run at once; others hand the
+    stop to the machine of the run, and then the command says that the stop was
+    accepted and `sentinel watch` shows when the run ends. It needs a server that
+    accepts an API key for stopping a run. A server that stops runs only from its
+    panel refuses, the command says so, and the run keeps going.
   - `sentinel runs` prints a header and one line per run, newest first; it prints
     `No runs yet.` when there are none. `--limit <n>` is how many to list, from 1 to
     100, `20` by default. `--json` prints the runs as a JSON array with the same
@@ -61,6 +69,10 @@
     the server gives them, and only the lines that are new since the last time.
     `--timeout <duration>` is how long to follow, `2h` by default; the run continues
     on the server after it, and so after Ctrl-C.
+  - Exit status of `sentinel cancel`: `0` when the run was stopped, when the server
+    accepted the stop, or when the run had already ended; `1` for a run the server
+    does not know, a refusal, a missing variable or an error from the server; `2`
+    when the command line was wrong.
   - Exit status of `sentinel runs`: `0` on success, `1` for a missing variable or an
     error from the server, `2` when the command line was wrong.
   - Exit status of `sentinel watch`: `0` when the run ended as `completed`; `1` for
@@ -78,7 +90,6 @@
 | `sentinel login` | Sign in with GitHub, reusing the session of `gh`. | 1 |
 | `sentinel run "<task>"` | Send the task and the patch that `--dry-run` shows, and start a run. | 1 |
 | `sentinel pull [run]` | Fetch the branch of the pull request. | 1 |
-| `sentinel cancel <run>` | Cancel a run. | 1 |
 | `sentinel resume <run>` | Continue a paused run with a larger limit or another model. | 1 |
 | `sentinel stop` | Halt every run on the server until you allow them again. | 1 |
 | `sentinel update` | Update the client and the runtime. | 1 |

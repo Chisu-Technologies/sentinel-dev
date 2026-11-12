@@ -21,6 +21,8 @@ Nothing has been released.
 - `sentinel runs`: lists the latest runs of a Sentinel server, as a table or as JSON.
 - `sentinel watch <run id>`: follows a run until it ends, printing its status changes
   and the new lines of its log, and exits `0` only when the run completed.
+- `sentinel cancel <run id>`: asks a Sentinel server to stop a run that is still going.
+  It needs a server that accepts an API key for stopping a run.
 - `sentinel version`.
 - Installers for Linux, macOS (`scripts/install.sh`) and Windows
   (`scripts/install.ps1`), and a release workflow that builds one archive per system

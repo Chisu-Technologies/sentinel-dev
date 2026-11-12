@@ -63,6 +63,7 @@ Usage:
   sentinel <command> [flags]
 
 Commands:
+  cancel <run id>           Stop a run of a Sentinel server
   doctor [destination]      Check this machine, or a server before installing on it
   run --dry-run "<task>"    Show what a task would send from this repository
   runs                      List the runs of a Sentinel server
@@ -86,6 +87,8 @@ func Run(ctx context.Context, args []string, env Env) int {
 		return ExitOK
 	case "version", "--version":
 		return runVersion(rest, env)
+	case "cancel":
+		return runCancel(ctx, rest, env)
 	case "doctor":
 		return runDoctor(ctx, rest, env)
 	case "run":
