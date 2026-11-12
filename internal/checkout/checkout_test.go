@@ -166,6 +166,33 @@ func TestBuildWorksFromASubdirectory(t *testing.T) {
 	assertRebuilds(t, f, pkg)
 }
 
+func TestRepositoryNamesTheGitHubRepositoryOfTheCheckout(t *testing.T) {
+	f := checkouttest.New(t)
+	got, err := Repository(context.Background(), execx.OS{}, filepath.Join(f.Work, "src"))
+	if err != nil || got != "acme/widgets" {
+		t.Errorf("Repository from a subdirectory = %q, %v", got, err)
+	}
+
+	// The remote the branch is configured for wins over origin.
+	checkouttest.Git(t, f.Work, nil, "remote", "add", "fork", "git@github.com:someone/widgets.git")
+	checkouttest.Git(t, f.Work, nil, "config", "branch.main.remote", "fork")
+	if got, err := Repository(context.Background(), execx.OS{}, f.Work); err != nil || got != "someone/widgets" {
+		t.Errorf("Repository with a configured remote = %q, %v", got, err)
+	}
+}
+
+func TestRepositoryRefusesWhatIsNotAGitHubCheckout(t *testing.T) {
+	if _, err := Repository(context.Background(), execx.OS{}, t.TempDir()); err == nil || !strings.Contains(err.Error(), "not inside a git repository") {
+		t.Errorf("outside a repository: %v", err)
+	}
+	f := checkouttest.New(t)
+	checkouttest.Git(t, f.Work, nil, "remote", "set-url", "origin", "https://oauth2:glpat-NotARealToken@gitlab.com/acme/widgets.git")
+	_, err := Repository(context.Background(), execx.OS{}, f.Work)
+	if err == nil || !strings.Contains(err.Error(), "not a repository on github.com") || strings.Contains(err.Error(), "glpat") {
+		t.Errorf("a remote that is not GitHub: %v", err)
+	}
+}
+
 func TestBuildLeavesTheRepositoryAsItWas(t *testing.T) {
 	f := checkouttest.New(t)
 	checkouttest.Write(t, f.Work, "src/app.txt", []byte("staged\n"))

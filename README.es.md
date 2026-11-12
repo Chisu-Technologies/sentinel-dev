@@ -17,9 +17,9 @@ corre en un sandbox que nunca tiene tus llaves. Un segundo agente, que no escrib
 cambio, lo prueba. El resultado es un pull request para que lo revises; el agente no
 puede hacer merge.
 
-> **Pre-alfa.** Hoy solo existen `sentinel doctor`, `sentinel run --dry-run` y
-> `sentinel version`. El resto de esta página es el diseño previsto; mira la
-> [hoja de ruta](docs/roadmap.md).
+> **Pre-alfa.** Hoy solo existen `sentinel doctor`, `sentinel run --dry-run`,
+> `sentinel verify` y `sentinel version`. El resto de esta página es el diseño
+> previsto; mira la [hoja de ruta](docs/roadmap.md).
 
 ## Cómo va a funcionar
 
@@ -71,10 +71,17 @@ sentinel doctor deploy@my-server
 sentinel run --dry-run "fix the flaky login test"
 ```
 
+```bash
+sentinel verify 12
+```
+
 La primera forma comprueba git, la CLI de GitHub y ssh en tu máquina. La segunda
 comprueba un servidor antes de instalar en él; solo lee, y no instala nada ahí. Cada
 comprobación fallida dice cómo arreglarla. La tercera muestra lo que una tarea
-enviaría desde el repositorio en el que estás, y no envía nada.
+enviaría desde el repositorio en el que estás, y no envía nada. La cuarta pide a un
+servidor de Sentinel, el de `SENTINEL_URL`, que verifique el pull request 12 del
+repositorio en el que estás, y muestra el veredicto; mira los
+[comandos](docs/commands.md).
 
 ## Ediciones
 
@@ -97,7 +104,9 @@ modelo usaron y cómo terminaron. No recibirá prompts, código ni diffs. La lis
 no es definitiva; estará en la [página de privacidad](docs/privacy.md) antes de la
 primera versión, y lo que no esté en ella no se enviará.
 
-Hoy ningún comando envía nada a Sentinel.
+Hoy `sentinel verify` es el único comando que contacta con un servidor de Sentinel, el
+de `SENTINEL_URL`. Envía el nombre del repositorio, el número del pull request y tu
+llave de API, y no lee ni envía tu árbol de trabajo.
 
 ## Requisitos (previstos)
 

@@ -84,21 +84,9 @@ func Build(ctx context.Context, runner execx.Runner, dir string) (Package, error
 		return Package{}, errors.New("this repository has no commit yet")
 	}
 
-	// The branch says which remote it belongs to. "." means it tracks another
-	// local branch, which says nothing about GitHub.
-	remote, tracksRemote := "origin", false
-	if branch, err := r.line("symbolic-ref", "--quiet", "--short", "HEAD"); err == nil {
-		if configured, err := r.line("config", "--get", "branch."+branch+".remote"); err == nil && configured != "" && configured != "." {
-			remote, tracksRemote = configured, true
-		}
-	}
-	url, err := r.line("remote", "get-url", remote)
+	repository, remote, tracksRemote, err := r.githubRemote()
 	if err != nil {
-		return Package{}, fmt.Errorf("this repository has no remote named %q; Sentinel opens the pull request on GitHub, so it needs one", remote)
-	}
-	repository, err := ParseGitHubRemote(url)
-	if err != nil {
-		return Package{}, fmt.Errorf("remote %q: %w", remote, err)
+		return Package{}, err
 	}
 
 	base, err := r.baseCommit(remote, tracksRemote)
@@ -110,6 +98,42 @@ func Build(ctx context.Context, runner execx.Runner, dir string) (Package, error
 		return Package{}, err
 	}
 	return Package{Repository: repository, BaseCommit: base, Patch: patch, Files: files}, nil
+}
+
+// Repository returns the GitHub repository ("owner/name") that the working tree
+// of dir belongs to. It reads local git configuration and contacts nobody.
+func Repository(ctx context.Context, runner execx.Runner, dir string) (string, error) {
+	r := repo{ctx: ctx, runner: runner, dir: dir}
+	root, err := r.line("rev-parse", "--show-toplevel")
+	if err != nil {
+		return "", errors.New("this directory is not inside a git repository")
+	}
+	r.dir = root
+	repository, _, _, err := r.githubRemote()
+	return repository, err
+}
+
+// githubRemote resolves the remote the current branch belongs to and the GitHub
+// repository it points at. tracksRemote says whether the branch configures that
+// remote, as opposed to falling back to origin.
+func (r repo) githubRemote() (repository, remote string, tracksRemote bool, err error) {
+	// The branch says which remote it belongs to. "." means it tracks another
+	// local branch, which says nothing about GitHub.
+	remote, tracksRemote = "origin", false
+	if branch, err := r.line("symbolic-ref", "--quiet", "--short", "HEAD"); err == nil {
+		if configured, err := r.line("config", "--get", "branch."+branch+".remote"); err == nil && configured != "" && configured != "." {
+			remote, tracksRemote = configured, true
+		}
+	}
+	url, err := r.line("remote", "get-url", remote)
+	if err != nil {
+		return "", "", false, fmt.Errorf("this repository has no remote named %q; Sentinel opens the pull request on GitHub, so it needs one", remote)
+	}
+	repository, err = ParseGitHubRemote(url)
+	if err != nil {
+		return "", "", false, fmt.Errorf("remote %q: %w", remote, err)
+	}
+	return repository, remote, tracksRemote, nil
 }
 
 // baseCommit finds a commit of HEAD that the remote is known to have. It

@@ -9,6 +9,7 @@
 | `sentinel doctor` | Check that git, the GitHub CLI and ssh are installed on this machine, and that `gh` is signed in to github.com. |
 | `sentinel doctor <destination>` | Check a server before installing on it: operating system, architecture, privileges, systemd, memory and Docker. It only reads: it installs and configures nothing on the server. |
 | `sentinel run --dry-run "<task>"` | Show what a task would send from this repository: the GitHub repository, the commit GitHub already has, and the files in the patch. It sends nothing. |
+| `sentinel verify <pull request>` | Ask a Sentinel server to verify an existing pull request, wait, and print the verdict. |
 | `sentinel version` | Print the version. |
 
 - `<destination>` is what you would give to `ssh`: `user@host`, or a `Host` from your
@@ -23,6 +24,29 @@
   commits you have not pushed, your staged and unstaged changes, and new files that
   are not ignored. It is limited to 3 MiB; past that, push your branch first. Without
   `--dry-run` the command stops and says that sending is not available yet.
+- `sentinel verify` asks a server to check out the pull request, run the project's
+  tests and an independent QA in a sandbox, and comment its verdict on the pull
+  request; it does not push to the repository. It needs a Sentinel server that
+  accepts API keys. The open runtime is not released yet, so today that is a server
+  of the hosted edition.
+  - `SENTINEL_URL` is the address of the server. It must be `https`; `http` is
+    accepted only for `localhost`, `127.0.0.1` and `[::1]`. It must not carry a user
+    name, a query or a fragment.
+  - `SENTINEL_API_KEY` is the key. It is read only from the environment, never from
+    a flag.
+  - `<pull request>` is a number such as `12`, for the GitHub repository of the
+    current checkout, or a URL such as `https://github.com/owner/name/pull/12`.
+  - `--base <branch>` names the branch the pull request targets, when it is not the
+    default one. `--no-wait` prints the run id and stops. `--timeout <duration>` is
+    how long to wait, `45m` by default; the run continues on the server after it.
+  - `--dry-run` shows the repository, the pull request and the host of the server,
+    and sends nothing. It needs no key.
+  - `--json` prints one JSON object on standard output; progress goes to standard
+    error.
+  - Exit status: `0` when the verdict is `APPROVED`, or when `--dry-run` or
+    `--no-wait` succeeded; `1` for any other verdict, a run that failed or was
+    stopped, a timeout, a missing variable or an error from the server; `2` when the
+    command line was wrong.
 
 ## Planned
 

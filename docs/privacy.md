@@ -5,10 +5,12 @@
 
 ## Today
 
-No command sends anything to Sentinel. `sentinel doctor <destination>` connects to the
-server you name, with your own `ssh`, and to nothing else. `sentinel run --dry-run`
-reads your repository with git and connects to nothing; it prints file names, not
-file contents.
+`sentinel verify` is the one command that contacts a Sentinel server, the one in
+`SENTINEL_URL`. It sends the repository name, the pull request number and your API
+key, and reads back the state of the run. It does not read or send your working tree.
+`sentinel doctor <destination>` connects to the server you name, with your own `ssh`,
+and to nothing else. `sentinel run --dry-run` reads your repository with git and
+connects to nothing; it prints file names, not file contents.
 
 ## The open edition
 
