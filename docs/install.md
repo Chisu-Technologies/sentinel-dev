@@ -68,5 +68,6 @@ One archive per system, named without the version: `sentinel_linux_amd64.tar.gz`
 `THIRD_PARTY-NOTICES.md`. `SHA256SUMS` lists the six, and `SHA256SUMS.sigstore.json` is
 its signature.
 
-The archives are built by `scripts/build-release.sh`. The same commit gives the same
-bytes, so anyone can build a tag and compare with `SHA256SUMS`.
+The archives are built by `scripts/build-release.sh`, on Linux, from a checkout with
+nothing uncommitted; it refuses any other. The same commit gives the same bytes, so
+anyone can build a tag and compare with `SHA256SUMS`.

@@ -83,15 +83,24 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: scripts\install_test.ps1
-      # The archives need GNU tar, which the Linux runner has. Built twice to hold
-      # the promise that one commit gives the same bytes.
-      - name: Build a release twice and install from it
+      # The archives need GNU tar, which the Linux runner has. Built three times to
+      # hold the promise that one commit gives the same bytes: twice outside the
+      # tree, and once into a directory of the tree that git does not ignore, which
+      # is the case that once changed five of the six binaries.
+      - name: Build a release three times and install from it
         if: runner.os == 'Linux'
         run: |
-          bash scripts/build-release.sh v0.0.0 dist
-          bash scripts/build-release.sh v0.0.0 dist-again
-          diff dist/SHA256SUMS dist-again/SHA256SUMS
-          test "$(ls dist | wc -l)" -eq 7
+          bash scripts/build-release.sh v0.0.0 "$RUNNER_TEMP/dist"
+          bash scripts/build-release.sh v0.0.0 "$RUNNER_TEMP/dist-again"
+          diff "$RUNNER_TEMP/dist/SHA256SUMS" "$RUNNER_TEMP/dist-again/SHA256SUMS"
+          bash scripts/build-release.sh v0.0.0 out-in-the-tree
+          diff "$RUNNER_TEMP/dist/SHA256SUMS" out-in-the-tree/SHA256SUMS
+          test "$(ls "$RUNNER_TEMP/dist" | wc -l)" -eq 7
+          # The tree now holds files that are not committed: a release from it is refused.
+          if bash scripts/build-release.sh v0.0.0 "$RUNNER_TEMP/dist-dirty"; then
+            echo "A release was built from a tree with changes that are not committed." >&2
+            exit 1
+          fi
           home=$(mktemp -d)
-          HOME="$home" SENTINEL_DOWNLOAD_BASE="$PWD/dist" sh scripts/install.sh
+          HOME="$home" SENTINEL_DOWNLOAD_BASE="$RUNNER_TEMP/dist" sh scripts/install.sh
           "$home/.local/bin/sentinel" version | grep -F "sentinel v0.0.0 "

@@ -152,3 +152,6 @@ finally {
 Write-Output ''
 Write-Output "$failed of $total checks failed"
 if ($failed -ne 0) { exit 1 }
+# Said outright: the last installer run of these cases is one that must fail, and a
+# caller that reads $LASTEXITCODE would take its status for the status of the tests.
+exit 0
