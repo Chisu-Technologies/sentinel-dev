@@ -20,6 +20,7 @@ func main() {
 		Stderr: os.Stderr,
 		Runner: execx.OS{},
 		Build:  buildinfo.Read(),
+		Getenv: os.Getenv,
 	})
 	stop()
 	os.Exit(code)

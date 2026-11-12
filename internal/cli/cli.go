@@ -10,7 +10,9 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net/http"
 	"strings"
+	"time"
 
 	"github.com/Chisu-Technologies/sentinel-dev/internal/buildinfo"
 	"github.com/Chisu-Technologies/sentinel-dev/internal/checkout"
@@ -35,6 +37,22 @@ type Env struct {
 	// Dir is the directory the command was started in. Empty means the
 	// current directory of the process.
 	Dir string
+	// Getenv reads an environment variable. Nil means every variable is
+	// empty, so a test never depends on the machine it runs on.
+	Getenv func(string) string
+	// HTTP is the client for requests to a Sentinel server. Nil means one with
+	// a 30 second timeout. Redirects are never followed, whatever it is.
+	HTTP *http.Client
+	// Sleep waits for d, or returns early with the error of ctx. Nil means a
+	// real timer. It exists so a test does not wait for the clock.
+	Sleep func(ctx context.Context, d time.Duration) error
+}
+
+func (e Env) getenv(name string) string {
+	if e.Getenv == nil {
+		return ""
+	}
+	return strings.TrimSpace(e.Getenv(name))
 }
 
 const usage = `sentinel is the Sentinel command-line client.
@@ -47,6 +65,7 @@ Usage:
 Commands:
   doctor [destination]      Check this machine, or a server before installing on it
   run --dry-run "<task>"    Show what a task would send from this repository
+  verify <pull request>     Ask a Sentinel server to verify a pull request
   version                   Print the version
   help                      Show this help
 
@@ -69,6 +88,8 @@ func Run(ctx context.Context, args []string, env Env) int {
 		return runDoctor(ctx, rest, env)
 	case "run":
 		return runRun(ctx, rest, env)
+	case "verify":
+		return runVerify(ctx, rest, env)
 	default:
 		fmt.Fprintf(env.Stderr, "sentinel: unknown command %q\n\n%s", name, usage)
 		return ExitUsage

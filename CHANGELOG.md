@@ -15,6 +15,9 @@ Nothing has been released.
 - `sentinel doctor <destination>`: checks a server over ssh before installing on it.
 - `sentinel run --dry-run "<task>"`: shows what a task would send from the current
   repository, and sends nothing.
+- `sentinel verify <pull request>`: asks a Sentinel server to verify an existing pull
+  request, waits, and prints the verdict. It reads `SENTINEL_URL` and
+  `SENTINEL_API_KEY` from the environment.
 - `sentinel version`.
 
 ### Changed

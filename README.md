@@ -13,9 +13,9 @@ Sentinel runs coding agents on a machine you control. Each task runs in a sandbo
 never holds your keys. A second agent, which did not write the change, tests it. The
 result is a pull request for you to review; the agent cannot merge.
 
-> **Pre-alpha.** Only `sentinel doctor`, `sentinel run --dry-run` and `sentinel version`
-> exist today. The rest of this page is the planned design; see the
-> [roadmap](docs/roadmap.md).
+> **Pre-alpha.** Only `sentinel doctor`, `sentinel run --dry-run`, `sentinel verify`
+> and `sentinel version` exist today. The rest of this page is the planned design;
+> see the [roadmap](docs/roadmap.md).
 
 ## How it will work
 
@@ -66,10 +66,16 @@ sentinel doctor deploy@my-server
 sentinel run --dry-run "fix the flaky login test"
 ```
 
+```bash
+sentinel verify 12
+```
+
 The first form checks git, the GitHub CLI and ssh on your machine. The second checks a
 server before you install on it; it only reads, and installs nothing there. Each
 failed check prints how to fix it. The third shows what a task would send from the
-repository you are in, and sends nothing.
+repository you are in, and sends nothing. The fourth asks a Sentinel server, the one in
+`SENTINEL_URL`, to verify pull request 12 of the repository you are in, and prints the
+verdict; see the [commands](docs/commands.md).
 
 ## Editions
 
@@ -92,7 +98,9 @@ they used and how they ended. It will not receive prompts, code or diffs. The ex
 list is not final; it will be on the [privacy page](docs/privacy.md) before the first
 release, and what is not on it will not be sent.
 
-Today no command sends anything to Sentinel.
+Today `sentinel verify` is the one command that contacts a Sentinel server, the one in
+`SENTINEL_URL`. It sends the repository name, the pull request number and your API key,
+and does not read or send your working tree.
 
 ## Requirements (planned)
 
