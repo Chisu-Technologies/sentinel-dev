@@ -314,6 +314,27 @@ func (c *Client) Stories(ctx context.Context, id string) ([]Story, error) {
 	return stories, err
 }
 
+// Stop asks the server to stop a run and returns the run as the server then
+// sees it. A server that stops the run itself answers with the run already
+// stopped; one that hands the stop to the machine of the run answers before
+// that machine applied it, with the status the run still has. Stopping a run
+// that already ended is not an error: the answer is the run as it ended.
+func (c *Client) Stop(ctx context.Context, id string) (Run, error) {
+	if !ValidRunID(id) {
+		return Run{}, errors.New("not a valid run id")
+	}
+	status, data, tooLarge, err := c.fetch(ctx, http.MethodPost, "/api/runs/"+id+"/stop", nil, "application/json")
+	if err != nil {
+		return Run{}, err
+	}
+	if status != http.StatusOK && status != http.StatusAccepted {
+		return Run{}, c.apiError(status, data, tooLarge)
+	}
+	var run Run
+	err = decode(data, tooLarge, &run)
+	return run, err
+}
+
 // fetch sends one request and reads at most maxBody+1 bytes of the answer, so
 // every endpoint shares the same key handling and the same bound.
 func (c *Client) fetch(ctx context.Context, method, path string, body any, accept string) (status int, data []byte, tooLarge bool, err error) {
@@ -356,6 +377,11 @@ func (c *Client) do(ctx context.Context, method, path string, body any, want int
 	if status != want {
 		return c.apiError(status, data, tooLarge)
 	}
+	return decode(data, tooLarge, out)
+}
+
+// decode reads the JSON of a success answer into out.
+func decode(data []byte, tooLarge bool, out any) error {
 	if tooLarge {
 		return errors.New("the answer of the server is larger than 1 MiB")
 	}

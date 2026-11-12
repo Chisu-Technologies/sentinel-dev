@@ -167,3 +167,92 @@ func TestCleanStillRemovesNewlinesAndTabs(t *testing.T) {
 		t.Errorf("Clean = %q: single-line cleaning must not keep layout characters", got)
 	}
 }
+
+func TestStopPostsToTheRunWithTheKeyAndNoBody(t *testing.T) {
+	var gotMethod, gotPath, gotAuth, gotType string
+	var gotBody []byte
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotMethod, gotPath = r.Method, r.URL.Path
+		gotAuth, gotType = r.Header.Get("Authorization"), r.Header.Get("Content-Type")
+		gotBody, _ = io.ReadAll(r.Body)
+		io.WriteString(w, `{"id":"run-7","status":"stopped","finished_at":"2026-01-02T03:09:00Z"}`)
+	}))
+	defer srv.Close()
+
+	run, err := newClient(t, srv.URL).Stop(context.Background(), "run-7")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if gotMethod != http.MethodPost || gotPath != "/api/runs/run-7/stop" || gotAuth != "Bearer "+testKey {
+		t.Errorf("request = %s %s, Authorization %q", gotMethod, gotPath, gotAuth)
+	}
+	if len(gotBody) != 0 || gotType != "" {
+		t.Errorf("the stop carried a body: %q (Content-Type %q)", gotBody, gotType)
+	}
+	if run.ID != "run-7" || run.Status != StatusStopped || run.FinishedAt == nil {
+		t.Errorf("run = %+v", run)
+	}
+}
+
+// A server that hands the stop to the machine of the run answers 202 with the
+// status the run still has.
+func TestStopReadsTheRunOfAnAcceptedStop(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusAccepted)
+		io.WriteString(w, `{"id":"run-7","status":"running","sync_status":"queued"}`)
+	}))
+	defer srv.Close()
+	run, err := newClient(t, srv.URL).Stop(context.Background(), "run-7")
+	if err != nil || run.Status != "running" {
+		t.Errorf("Stop = %+v, %v", run, err)
+	}
+}
+
+func TestStopReturnsTheAnswerOfARefusal(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusConflict)
+		io.WriteString(w, `{"detail":{"code":"tenant_runtime_offline","message":"Tenant runtime is offline"}}`)
+	}))
+	defer srv.Close()
+	_, err := newClient(t, srv.URL).Stop(context.Background(), "run-7")
+	var apiErr *APIError
+	if !errors.As(err, &apiErr) || apiErr.Status != http.StatusConflict || apiErr.Code != "tenant_runtime_offline" ||
+		apiErr.Detail != "Tenant runtime is offline" {
+		t.Errorf("err = %v", err)
+	}
+}
+
+func TestStopWithAnIDThatIsNotValidSendsNothing(t *testing.T) {
+	var requests atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { requests.Add(1) }))
+	defer srv.Close()
+	if _, err := newClient(t, srv.URL).Stop(context.Background(), "../x"); err == nil || requests.Load() != 0 {
+		t.Errorf("err = %v after %d requests", err, requests.Load())
+	}
+}
+
+func TestStopNeverFollowsARedirect(t *testing.T) {
+	var elsewhere atomic.Int32
+	other := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { elsewhere.Add(1) }))
+	defer other.Close()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, other.URL+"/stop", http.StatusTemporaryRedirect)
+	}))
+	defer srv.Close()
+
+	// A client that would follow redirects: the package must override it. A
+	// 307 keeps the method, so following it would stop a run somewhere else
+	// with the key in the header.
+	c, err := New(srv.URL, testKey, &http.Client{}, "ua")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = c.Stop(context.Background(), "run-7")
+	var apiErr *APIError
+	if !errors.As(err, &apiErr) || apiErr.Status != http.StatusTemporaryRedirect {
+		t.Fatalf("err = %v, want an APIError for the 307", err)
+	}
+	if elsewhere.Load() != 0 {
+		t.Error("the redirect was followed")
+	}
+}

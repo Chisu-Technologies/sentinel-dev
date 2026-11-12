@@ -13,9 +13,10 @@ Sentinel runs coding agents on a machine you control. Each task runs in a sandbo
 never holds your keys. A second agent, which did not write the change, tests it. The
 result is a pull request for you to review; the agent cannot merge.
 
-> **Pre-alpha.** Only `sentinel doctor`, `sentinel run --dry-run`, `sentinel runs`,
-> `sentinel verify`, `sentinel version` and `sentinel watch` exist today. The rest of
-> this page is the planned design; see the [roadmap](docs/roadmap.md).
+> **Pre-alpha.** Only `sentinel cancel`, `sentinel doctor`, `sentinel run --dry-run`,
+> `sentinel runs`, `sentinel verify`, `sentinel version` and `sentinel watch` exist
+> today. The rest of this page is the planned design; see the
+> [roadmap](docs/roadmap.md).
 
 ## How it will work
 
@@ -98,11 +99,11 @@ they used and how they ended. It will not receive prompts, code or diffs. The ex
 list is not final; it will be on the [privacy page](docs/privacy.md) before the first
 release, and what is not on it will not be sent.
 
-Today `sentinel verify`, `sentinel runs` and `sentinel watch` are the commands that
-contact a Sentinel server, the one in `SENTINEL_URL`. They send your API key, and the
-repository name and pull request number (`verify`) or a run id (`watch`); they read
-back the state of your runs, and `watch` their recent log lines. None of them reads or
-sends your working tree.
+Today `sentinel cancel`, `sentinel verify`, `sentinel runs` and `sentinel watch` are the
+commands that contact a Sentinel server, the one in `SENTINEL_URL`. They send your API
+key, and the repository name and pull request number (`verify`) or a run id (`cancel`,
+`watch`); they read back the state of your runs, and `watch` their recent log lines.
+None of them reads or sends your working tree.
 
 ## Requirements (planned)
 
