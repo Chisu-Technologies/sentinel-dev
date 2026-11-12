@@ -22,6 +22,9 @@ Nothing has been released.
 - `sentinel watch <run id>`: follows a run until it ends, printing its status changes
   and the new lines of its log, and exits `0` only when the run completed.
 - `sentinel version`.
+- Installers for Linux, macOS (`scripts/install.sh`) and Windows
+  (`scripts/install.ps1`), and a release workflow that builds one archive per system
+  and signs their checksums. No release has been published with it yet.
 
 ### Changed
 

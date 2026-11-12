@@ -1,0 +1,84 @@
+name: release
+
+# A release is built for a version tag and for nothing else. It is created as a
+# draft: publishing it is a click of the maintainer, after reading it.
+on:
+  push:
+    tags: ["v[0-9]+.[0-9]+.[0-9]+"]
+
+permissions:
+  contents: read
+
+# Two runs for one tag would race to create the same release.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      # Create the draft release and upload its files.
+      contents: write
+      # The identity of this run signs SHA256SUMS; no signing key is stored anywhere.
+      id-token: write
+    steps:
+      - name: Check out source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          # The check below needs the history of main.
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Release only what is on main
+        run: |
+          git fetch --no-tags origin main
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" FETCH_HEAD; then
+            echo "The tag $GITHUB_REF_NAME is not on main." >&2
+            exit 1
+          fi
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - name: Vet
+        run: go vet ./...
+      - name: Test
+        run: go test ./...
+      - name: Build the archives
+        run: bash scripts/build-release.sh "$GITHUB_REF_NAME" dist
+      - name: Install from the archives that were just built
+        run: |
+          home=$(mktemp -d)
+          HOME="$home" SENTINEL_DOWNLOAD_BASE="$PWD/dist" sh scripts/install.sh
+          installed=$("$home/.local/bin/sentinel" version)
+          echo "$installed"
+          case "$installed" in
+            "sentinel $GITHUB_REF_NAME "*) ;;
+            *) echo "The installed binary does not report $GITHUB_REF_NAME." >&2; exit 1 ;;
+          esac
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@ba7bc0a3fef59531c69a25acd34668d6d3fe6f22 # v4.1.0
+        with:
+          cosign-release: v3.0.5
+      - name: Sign SHA256SUMS
+        run: cosign sign-blob --yes --bundle dist/SHA256SUMS.sigstore.json dist/SHA256SUMS
+      # The same check the installers make, with the same identity pattern, so a
+      # release they would refuse is never created.
+      - name: Verify the signature as the installers do
+        run: |
+          cosign verify-blob \
+            --bundle dist/SHA256SUMS.sigstore.json \
+            --certificate-identity "https://github.com/${GITHUB_REPOSITORY}/.github/workflows/release.yml@${GITHUB_REF}" \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+            dist/SHA256SUMS
+          home=$(mktemp -d)
+          HOME="$home" SENTINEL_DOWNLOAD_BASE="$PWD/dist" SENTINEL_REQUIRE_SIGNATURE=1 sh scripts/install.sh
+      - name: Create the draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" --draft --verify-tag \
+            --title "$GITHUB_REF_NAME" \
+            --notes "See CHANGELOG.md for what changed. To check a download, see docs/install.md." \
+            dist/sentinel_* dist/SHA256SUMS dist/SHA256SUMS.sigstore.json
