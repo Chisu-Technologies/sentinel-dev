@@ -59,6 +59,9 @@ Con Go 1.26 o posterior:
 go install github.com/Chisu-Technologies/sentinel-dev/cmd/sentinel@latest
 ```
 
+Todavía no se ha publicado ninguna versión. El instalador de un comando y los releases
+firmados están listos para la primera; mira [cómo instalar el comando](docs/install.md).
+
 ```bash
 sentinel doctor
 ```

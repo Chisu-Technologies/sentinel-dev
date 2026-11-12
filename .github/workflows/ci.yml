@@ -53,3 +53,54 @@ jobs:
         run: go test -race ./...
       - name: Build
         run: go build ./cmd/sentinel
+
+  installer:
+    name: installer (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - name: Check out source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - name: Installer tests
+        if: runner.os != 'Windows'
+        run: bash scripts/install_test.sh
+      # The two PowerShells differ; people have either.
+      - name: Installer tests on Windows PowerShell 5.1
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: scripts\install_test.ps1
+      - name: Installer tests on PowerShell 7
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: scripts\install_test.ps1
+      # The archives need GNU tar, which the Linux runner has. Built three times to
+      # hold the promise that one commit gives the same bytes: twice outside the
+      # tree, and once into a directory of the tree that git does not ignore, which
+      # is the case that once changed five of the six binaries.
+      - name: Build a release three times and install from it
+        if: runner.os == 'Linux'
+        run: |
+          bash scripts/build-release.sh v0.0.0 "$RUNNER_TEMP/dist"
+          bash scripts/build-release.sh v0.0.0 "$RUNNER_TEMP/dist-again"
+          diff "$RUNNER_TEMP/dist/SHA256SUMS" "$RUNNER_TEMP/dist-again/SHA256SUMS"
+          bash scripts/build-release.sh v0.0.0 out-in-the-tree
+          diff "$RUNNER_TEMP/dist/SHA256SUMS" out-in-the-tree/SHA256SUMS
+          test "$(ls "$RUNNER_TEMP/dist" | wc -l)" -eq 7
+          # The tree now holds files that are not committed: a release from it is refused.
+          if bash scripts/build-release.sh v0.0.0 "$RUNNER_TEMP/dist-dirty"; then
+            echo "A release was built from a tree with changes that are not committed." >&2
+            exit 1
+          fi
+          home=$(mktemp -d)
+          HOME="$home" SENTINEL_DOWNLOAD_BASE="$RUNNER_TEMP/dist" sh scripts/install.sh
+          "$home/.local/bin/sentinel" version | grep -F "sentinel v0.0.0 "
