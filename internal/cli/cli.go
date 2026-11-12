@@ -65,7 +65,9 @@ Usage:
 Commands:
   doctor [destination]      Check this machine, or a server before installing on it
   run --dry-run "<task>"    Show what a task would send from this repository
+  runs                      List the runs of a Sentinel server
   verify <pull request>     Ask a Sentinel server to verify a pull request
+  watch <run id>            Follow a run until it ends
   version                   Print the version
   help                      Show this help
 
@@ -88,8 +90,12 @@ func Run(ctx context.Context, args []string, env Env) int {
 		return runDoctor(ctx, rest, env)
 	case "run":
 		return runRun(ctx, rest, env)
+	case "runs":
+		return runRuns(ctx, rest, env)
 	case "verify":
 		return runVerify(ctx, rest, env)
+	case "watch":
+		return runWatch(ctx, rest, env)
 	default:
 		fmt.Fprintf(env.Stderr, "sentinel: unknown command %q\n\n%s", name, usage)
 		return ExitUsage

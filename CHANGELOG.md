@@ -18,6 +18,9 @@ Nothing has been released.
 - `sentinel verify <pull request>`: asks a Sentinel server to verify an existing pull
   request, waits, and prints the verdict. It reads `SENTINEL_URL` and
   `SENTINEL_API_KEY` from the environment.
+- `sentinel runs`: lists the latest runs of a Sentinel server, as a table or as JSON.
+- `sentinel watch <run id>`: follows a run until it ends, printing its status changes
+  and the new lines of its log, and exits `0` only when the run completed.
 - `sentinel version`.
 
 ### Changed

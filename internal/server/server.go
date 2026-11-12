@@ -18,6 +18,7 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"strconv"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -167,10 +168,33 @@ func (c *Client) Clean(s string, limit int) string {
 	return s
 }
 
-// Run is the part of a run that the client reads.
+// CleanText is Clean for text of many lines, such as a run log: newlines and
+// tabs stay because they are its layout; every other control character
+// (an escape sequence starts with one) is removed. The key is replaced as in
+// Clean. There is no length limit: the caller already bounds what it reads.
+func (c *Client) CleanText(s string) string {
+	s = strings.Map(func(r rune) rune {
+		if unicode.IsControl(r) && r != '\n' && r != '\t' {
+			return -1
+		}
+		return r
+	}, s)
+	return strings.ReplaceAll(s, c.key, "[redacted]")
+}
+
+// Run is the part of a run that the client reads. The pointer fields are null
+// on the server until the run has a story, a pull request or an end.
 type Run struct {
-	ID     string `json:"id"`
-	Status string `json:"status"`
+	ID           string  `json:"id"`
+	Repo         string  `json:"repo"`
+	Status       string  `json:"status"`
+	Mode         string  `json:"mode"`
+	Story        *string `json:"story"`
+	PRNumber     *string `json:"pr_number"`
+	PRURL        *string `json:"pr_url"`
+	TotalCostUSD float64 `json:"total_cost_usd"`
+	StartedAt    *string `json:"started_at"`
+	FinishedAt   *string `json:"finished_at"`
 }
 
 // StartRequest asks for the verification of an existing pull request.
@@ -249,6 +273,37 @@ func (c *Client) Run(ctx context.Context, id string) (Run, error) {
 	return run, err
 }
 
+// Runs lists the runs, newest first.
+func (c *Client) Runs(ctx context.Context, limit, offset int) ([]Run, error) {
+	query := url.Values{"limit": {strconv.Itoa(limit)}, "offset": {strconv.Itoa(offset)}}
+	var runs []Run
+	err := c.do(ctx, http.MethodGet, "/api/runs?"+query.Encode(), nil, http.StatusOK, &runs)
+	return runs, err
+}
+
+// Log reads the most recent lines of a run's log, as the server bounds them.
+// found is false when the run has no log yet, which is not an error: a run
+// that has just started has none. The text is returned as received; the caller
+// passes it through CleanText before showing it.
+func (c *Client) Log(ctx context.Context, id string) (text string, found bool, err error) {
+	if !ValidRunID(id) {
+		return "", false, errors.New("not a valid run id")
+	}
+	status, data, tooLarge, err := c.fetch(ctx, http.MethodGet, "/api/runs/"+id+"/log", nil, "text/plain")
+	if err != nil {
+		return "", false, err
+	}
+	switch {
+	case status == http.StatusNotFound:
+		return "", false, nil
+	case status != http.StatusOK:
+		return "", false, c.apiError(status, data, tooLarge)
+	case tooLarge:
+		return "", false, errors.New("the answer of the server is larger than 1 MiB")
+	}
+	return string(data), true, nil
+}
+
 // Stories reads the stories of a run.
 func (c *Client) Stories(ctx context.Context, id string) ([]Story, error) {
 	if !ValidRunID(id) {
@@ -259,21 +314,23 @@ func (c *Client) Stories(ctx context.Context, id string) ([]Story, error) {
 	return stories, err
 }
 
-func (c *Client) do(ctx context.Context, method, path string, body any, want int, out any) error {
+// fetch sends one request and reads at most maxBody+1 bytes of the answer, so
+// every endpoint shares the same key handling and the same bound.
+func (c *Client) fetch(ctx context.Context, method, path string, body any, accept string) (status int, data []byte, tooLarge bool, err error) {
 	var payload io.Reader
 	if body != nil {
-		data, err := json.Marshal(body)
+		encoded, err := json.Marshal(body)
 		if err != nil {
-			return err
+			return 0, nil, false, err
 		}
-		payload = bytes.NewReader(data)
+		payload = bytes.NewReader(encoded)
 	}
 	req, err := http.NewRequestWithContext(ctx, method, c.base+path, payload)
 	if err != nil {
-		return c.scrub(err)
+		return 0, nil, false, c.scrub(err)
 	}
 	req.Header.Set("Authorization", "Bearer "+c.key)
-	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Accept", accept)
 	req.Header.Set("User-Agent", c.userAgent)
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
@@ -281,17 +338,23 @@ func (c *Client) do(ctx context.Context, method, path string, body any, want int
 
 	resp, err := c.http.Do(req)
 	if err != nil {
-		return c.scrub(err)
+		return 0, nil, false, c.scrub(err)
 	}
 	defer resp.Body.Close()
-	data, err := io.ReadAll(io.LimitReader(resp.Body, maxBody+1))
+	data, err = io.ReadAll(io.LimitReader(resp.Body, maxBody+1))
 	if err != nil {
-		return c.scrub(err)
+		return 0, nil, false, c.scrub(err)
 	}
-	tooLarge := len(data) > maxBody
+	return resp.StatusCode, data, len(data) > maxBody, nil
+}
 
-	if resp.StatusCode != want {
-		return c.apiError(resp.StatusCode, data, tooLarge)
+func (c *Client) do(ctx context.Context, method, path string, body any, want int, out any) error {
+	status, data, tooLarge, err := c.fetch(ctx, method, path, body, "application/json")
+	if err != nil {
+		return err
+	}
+	if status != want {
+		return c.apiError(status, data, tooLarge)
 	}
 	if tooLarge {
 		return errors.New("the answer of the server is larger than 1 MiB")
