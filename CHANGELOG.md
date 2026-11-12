@@ -24,6 +24,9 @@ Nothing has been released.
 - `sentinel cancel <run id>`: asks a Sentinel server to stop a run that is still going.
   It needs a server that accepts an API key for stopping a run.
 - `sentinel version`.
+- Installers for Linux, macOS (`scripts/install.sh`) and Windows
+  (`scripts/install.ps1`), and a release workflow that builds one archive per system
+  and signs their checksums. No release has been published with it yet.
 
 ### Changed
 
