@@ -99,4 +99,10 @@ jobs:
         run: |
           cat up.txt again.txt 2>/dev/null | grep -v 'token=' || true
           docker ps -a || true
+          if [ "$RUNNER_OS" = macOS ]; then
+            colima list || true
+            for f in ~/.colima/_lima/colima/ha.stderr.log ~/.colima/_lima/colima/serial*.log; do
+              [ -f "$f" ] && { echo "== $f"; tail -n 40 "$f"; }
+            done
+          fi
           cd ~/.sentinel/local 2>/dev/null && docker compose -p sentinel --env-file .env -f compose.yaml logs --tail 40 || true
