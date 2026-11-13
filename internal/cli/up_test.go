@@ -123,3 +123,22 @@ func TestDownStopsWithoutRemovingData(t *testing.T) {
 		}
 	}
 }
+
+// On Windows the user configuration folder is under AppData, which Docker
+// Desktop did not see; the installation lives in the home folder instead.
+func TestTheInstallationFolderIsInTheHomeFolderNotTheConfigurationFolder(t *testing.T) {
+	dir, err := localDir(Env{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	home, _ := os.UserHomeDir()
+	if want := filepath.Join(home, ".sentinel", "local"); dir != want {
+		t.Errorf("localDir = %q, want %q", dir, want)
+	}
+	if config, err := os.UserConfigDir(); err == nil && strings.HasPrefix(dir, config) && config != home {
+		t.Errorf("localDir %q is inside the configuration folder %q", dir, config)
+	}
+	if got, _ := localDir(Env{Getenv: func(string) string { return "/somewhere/else" }}); got != "/somewhere/else" {
+		t.Errorf("SENTINEL_HOME ignored: %q", got)
+	}
+}

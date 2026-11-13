@@ -84,8 +84,9 @@
     15 minutes.
   - Running it again updates and starts what is stopped. It keeps the secrets and the
     data. `--sign-in` prints a new sign-in link.
-  - It keeps its files in one folder: `sentinel/local` under your user configuration
-    folder, or the one in `SENTINEL_HOME` or `--dir`.
+  - It keeps its files in one folder: `.sentinel/local` in your home folder, or the one
+    in `SENTINEL_HOME` or `--dir`. On Windows, a folder under `AppData` does not work:
+    Docker Desktop does not see the files there.
   - An installation of the open edition has no limits on runs, members or repositories.
   - The images are built for `linux/amd64`. On Apple Silicon, Docker runs them under
     emulation; that has not been measured yet.

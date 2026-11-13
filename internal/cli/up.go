@@ -12,16 +12,23 @@ import (
 )
 
 // localDir is where an installation on this machine keeps its files, unless
-// --dir names another place.
+// --dir names another place: `.sentinel/local` in the home folder.
+//
+// Not the user configuration folder: on Windows that is under AppData, and
+// Docker Desktop did not see folders created there (Roaming and Local alike)
+// when it mounted them, so the files the compose mounts reached the containers
+// as empty directories and `up` failed. Measured on Windows 11 with Docker
+// Desktop on 2026-11-13; the home folder, Documents and the Desktop were seen
+// at once.
 func localDir(env Env) (string, error) {
 	if dir := env.getenv("SENTINEL_HOME"); dir != "" {
 		return dir, nil
 	}
-	base, err := os.UserConfigDir()
+	home, err := os.UserHomeDir()
 	if err != nil {
 		return "", errors.New("could not find a folder for the installation; pass --dir")
 	}
-	return filepath.Join(base, "sentinel", "local"), nil
+	return filepath.Join(home, ".sentinel", "local"), nil
 }
 
 func newInstall(env Env, dir string) *local.Install {
