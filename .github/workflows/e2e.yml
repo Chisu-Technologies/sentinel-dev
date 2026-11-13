@@ -1,0 +1,99 @@
+name: e2e
+
+# The whole path of a new user, on a clean machine, with nothing from a checkout:
+# the one-line installer, the latest published release, the published images. It
+# runs for every published release, for changes to the installer or to `up`, and
+# on demand. The installer is read at the commit under test.
+on:
+  release:
+    types: [published]
+  pull_request:
+    paths:
+      - scripts/install.sh
+      - internal/local/**
+      - internal/cli/up.go
+      - .github/workflows/e2e.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  new-user:
+    name: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # A terminal window on Ubuntu is an interactive bash, which reads .bashrc.
+          - os: ubuntu-latest
+            user_shell: /bin/bash
+            new_terminal: bash -ic
+            up: true
+          # On macOS it is a login zsh. GitHub's macOS runners have no Docker, so
+          # this job stops after the install. A Linux VM for Docker on them (colima
+          # on the Intel runners, with Apple's virtualization and with qemu) lost its
+          # Docker daemon a minute into the image download in four runs out of four.
+          - os: macos-latest
+            user_shell: /bin/zsh
+            new_terminal: zsh -lic
+            up: false
+    env:
+      USER_SHELL: ${{ matrix.user_shell }}
+      NEW_TERMINAL: ${{ matrix.new_terminal }}
+      INSTALLER_REF: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      # The runner's own PATH may already hold ~/.local/bin; a new user's does not.
+      # Each command below runs in a clean environment, as a new window would, so
+      # sentinel is found only through what the installer wrote.
+      - name: Install with the one-line installer
+        run: |
+          curl -fsSL "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${INSTALLER_REF}/scripts/install.sh" |
+            env -i HOME="$HOME" SHELL="$USER_SHELL" PATH=/usr/bin:/bin sh
+
+      - name: sentinel works in a new terminal
+        run: |
+          cat > "$RUNNER_TEMP/term" <<'EOF'
+          #!/bin/sh
+          # term '<command>': runs it in a new terminal of this user.
+          exec env -i HOME="$HOME" USER="$USER" SHELL="$USER_SHELL" TERM=xterm PATH=/usr/bin:/bin:/usr/sbin:/sbin $NEW_TERMINAL "$1"
+          EOF
+          chmod 755 "$RUNNER_TEMP/term"
+          "$RUNNER_TEMP/term" 'command -v sentinel && sentinel version'
+
+      - name: sentinel up
+        if: matrix.up
+        run: |
+          start=$(date +%s)
+          # The sign-in link is a one-time token: it goes to a file, not to the log.
+          "$RUNNER_TEMP/term" 'sentinel up --email e2e@example.test' > up.txt
+          echo "up took $(( $(date +%s) - start ))s"
+          grep -F "Sentinel is running: http://localhost:8080" up.txt
+
+      - name: The sign-in link opens the panel as the owner
+        if: matrix.up
+        run: |
+          link=$(grep -o 'http://localhost:8080/api/auth/verify?token=[A-Za-z0-9_-]*' up.txt)
+          test -n "$link"
+          echo "verify -> $(curl -s -c jar -o /dev/null -w '%{http_code}' "$link")"
+          curl -s -b jar http://localhost:8080/api/auth/me > me.json
+          python3 -c "import json; d = json.load(open('me.json')); print(d['email'], d['role']); assert d['email'] == 'e2e@example.test' and d['role'] == 'owner'"
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/)" = 200
+
+      - name: down, then up again with the same owner
+        if: matrix.up
+        run: |
+          "$RUNNER_TEMP/term" 'sentinel down'
+          test -z "$(docker ps -q --filter label=com.docker.compose.project=sentinel)"
+          "$RUNNER_TEMP/term" 'sentinel up' > again.txt
+          grep -F "To get a new sign-in link: sentinel up --sign-in" again.txt
+          "$RUNNER_TEMP/term" 'sentinel up --sign-in' | grep -q 'http://localhost:8080/api/auth/verify?token='
+
+      - name: What was running, if anything failed
+        if: failure() && matrix.up
+        run: |
+          cat up.txt again.txt 2>/dev/null | grep -v 'token=' || true
+          docker ps -a || true
+          cd ~/.sentinel/local 2>/dev/null && docker compose -p sentinel --env-file .env -f compose.yaml logs --tail 40 || true

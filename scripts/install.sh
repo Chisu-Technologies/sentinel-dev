@@ -3,9 +3,10 @@
 #
 #   curl -fsSL https://raw.githubusercontent.com/Chisu-Technologies/sentinel-dev/main/scripts/install.sh | sh
 #
-# It asks for no password, never runs sudo, and writes one file: the binary, in
-# SENTINEL_INSTALL_DIR. The archive is checked against the SHA256SUMS of its
-# release before anything is installed. On Windows, use install.ps1.
+# It asks for no password, never runs sudo, and writes the binary in
+# SENTINEL_INSTALL_DIR; when that directory is not in PATH, also one line in the
+# startup file of the user's shell. The archive is checked against the SHA256SUMS
+# of its release before anything is installed. On Windows, use install.ps1.
 #
 #   SENTINEL_VERSION            a release tag such as v0.1.0. Empty: the latest release.
 #   SENTINEL_INSTALL_DIR        where the binary goes. Empty: $HOME/.local/bin.
@@ -13,6 +14,7 @@
 #                               mirrors the release pages, or a directory that holds
 #                               the files of one release. Empty: GitHub.
 #   SENTINEL_REQUIRE_SIGNATURE  1: stop unless the signature of SHA256SUMS was checked.
+#   SENTINEL_NO_MODIFY_PATH     1: leave PATH and the shell startup files alone.
 set -eu
 
 REPO="Chisu-Technologies/sentinel-dev"
@@ -176,8 +178,33 @@ main() {
   say "Installed $("$dir/sentinel" version 2>/dev/null || say sentinel) in $dir"
   case ":${PATH:-}:" in
     *":$dir:"*) ;;
-    *) say "$dir is not in your PATH. Add it, or run $dir/sentinel." ;;
+    *) add_to_path "$dir" ;;
   esac
+}
+
+# add_to_path puts dir on the PATH of new terminals: one line in the startup file
+# of the user's shell, written once. A script piped into sh cannot change the
+# terminal that ran it, so it says how to use the command there too.
+# SENTINEL_NO_MODIFY_PATH=1 leaves the startup files alone.
+add_to_path() {
+  line="export PATH=\"$1:\$PATH\""
+  if [ "${SENTINEL_NO_MODIFY_PATH:-}" = 1 ]; then
+    say "$1 is not in your PATH. Add it, or run $1/sentinel."
+    return 0
+  fi
+  case "$(basename "${SHELL:-sh}")" in
+    zsh) rc="$HOME/.zshrc" ;;
+    bash)
+      # macOS opens login shells, which read .bash_profile; Linux reads .bashrc.
+      if [ "$(uname -s)" = Darwin ]; then rc="$HOME/.bash_profile"; else rc="$HOME/.bashrc"; fi
+      ;;
+    *) rc="$HOME/.profile" ;;
+  esac
+  if ! grep -qsF "$line" "$rc"; then
+    printf '\n# Added by the sentinel installer\n%s\n' "$line" >> "$rc"
+    say "Added $1 to your PATH in $rc."
+  fi
+  say "Open a new terminal to use sentinel, or run this one first: $line"
 }
 
 # Everything above only defines functions: a download cut short runs nothing.

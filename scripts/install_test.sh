@@ -59,7 +59,7 @@ install() {
   shift
   home=$work/home.$total
   mkdir -p "$home"
-  out=$(env HOME="$home" PATH="$bin:$PATH" SENTINEL_DOWNLOAD_BASE="$rel" "$@" sh "$script" 2>&1)
+  out=$(env HOME="$home" PATH="$bin:$PATH" SHELL=/bin/sh SENTINEL_DOWNLOAD_BASE="$rel" "$@" sh "$script" 2>&1)
   code=$?
 }
 
@@ -84,8 +84,26 @@ check "installs the binary of this machine and says where" \
   '[ $code -eq 0 ] && installed && [[ $out == *"Installed sentinel v0.1.0 (test) in $home/.local/bin"* ]]'
 check "says the signature was not checked when cosign is absent" \
   '[[ $out == *"Signature not checked: cosign is not installed."* ]]'
-check "says when the directory is not in PATH" \
-  '[[ $out == *"is not in your PATH"* ]]'
+check "puts the directory on the PATH of new terminals, and says how to use it now" \
+  '[ "$(grep -cF "export PATH=\"$home/.local/bin:\$PATH\"" "$home/.profile")" = 1 ] &&
+   [[ $out == *"Added $home/.local/bin to your PATH in $home/.profile."* ]] &&
+   [[ $out == *"Open a new terminal to use sentinel"* ]]'
+
+# The startup file follows the shell, and a second install adds nothing.
+install "$work/rel" SHELL=/usr/bin/zsh
+zsh_home=$home
+check "writes the PATH line to .zshrc for zsh" '[ -f "$home/.zshrc" ] && [ ! -e "$home/.profile" ]'
+out=$(env HOME="$zsh_home" PATH="$bin:$PATH" SHELL=/usr/bin/zsh SENTINEL_DOWNLOAD_BASE="$work/rel" sh "$script" 2>&1)
+check "a second install does not add the line again" \
+  '[ "$(grep -c "Added by the sentinel installer" "$zsh_home/.zshrc")" = 1 ]'
+install "$work/rel" SHELL=/bin/bash
+check "writes the PATH line to .bashrc for bash on Linux" '[ -f "$home/.bashrc" ] && [ ! -e "$home/.bash_profile" ]'
+install "$work/rel" SENTINEL_NO_MODIFY_PATH=1
+check "with SENTINEL_NO_MODIFY_PATH=1, touches no startup file and says so" \
+  '[ ! -e "$home/.profile" ] && [[ $out == *"is not in your PATH. Add it"* ]]'
+shims Darwin arm64
+install "$work/rel" SHELL=/bin/bash
+check "writes the PATH line to .bash_profile for bash on macOS" '[ -f "$home/.bash_profile" ] && [ ! -e "$home/.bashrc" ]'
 
 shims Darwin arm64
 install "$work/rel" SENTINEL_INSTALL_DIR="$work/custom dir/bin"

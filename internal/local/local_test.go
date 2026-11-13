@@ -232,6 +232,12 @@ func TestDockerThatIsMissingOrStoppedIsSaidPlainly(t *testing.T) {
 		t.Errorf("missing: %v", err)
 	}
 
+	denied := &docker{rules: []rule{{contains: "docker info", result: execx.Result{ExitCode: 1, Stderr: "permission denied while trying to connect to the Docker daemon socket at unix:///var/run/docker.sock"}}}}
+	install, _ = newInstall(t, denied)
+	if _, err := install.Up(context.Background(), "you@example.com", false); !errors.Is(err, ErrDockerDenied) {
+		t.Errorf("denied: %v", err)
+	}
+
 	stopped := &docker{rules: []rule{{contains: "docker info", result: execx.Result{ExitCode: 1}}}}
 	install, _ = newInstall(t, stopped)
 	if _, err := install.Up(context.Background(), "you@example.com", false); !errors.Is(err, ErrDockerStopped) {

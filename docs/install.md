@@ -27,9 +27,14 @@ What the installer does, and nothing else:
 - It writes one file, the `sentinel` binary: in `~/.local/bin` on Linux and macOS, in
   `%LOCALAPPDATA%\Programs\sentinel` on Windows. It asks for no password and never runs
   `sudo`.
-- On Windows it adds that folder to your user `PATH`, so `sentinel` works in the same
-  window and in new ones; it changes nothing else. On Linux and macOS it does not change
-  your `PATH`; it tells you when the directory is not in it.
+- When that folder is not in your `PATH`, it adds it, and changes nothing else. On
+  Windows, to your user `PATH`, so `sentinel` works in the same window and in new ones.
+  On Linux and macOS, with one line at the end of the startup file of your shell
+  (`~/.zshrc` for zsh, `~/.bashrc` for bash on Linux, `~/.bash_profile` for bash on
+  macOS, `~/.profile` for any other), written once, marked
+  `# Added by the sentinel installer`. A script run through `curl | sh` cannot change
+  the terminal that ran it, so `sentinel` works in new terminals; the installer prints
+  the line to run first to use it in the same one.
 - Running it again replaces the binary with the latest release.
 
 | Variable | What it does |
@@ -38,7 +43,7 @@ What the installer does, and nothing else:
 | `SENTINEL_INSTALL_DIR` | Put the binary in this directory. |
 | `SENTINEL_DOWNLOAD_BASE` | Read releases from here: an https address that mirrors the release pages, or a directory that holds the files of one release. For a machine without access to GitHub. |
 | `SENTINEL_REQUIRE_SIGNATURE` | Set to `1` to stop unless the signature was checked. |
-| `SENTINEL_NO_MODIFY_PATH` | Set to `1` on Windows to leave your `PATH` as it is. |
+| `SENTINEL_NO_MODIFY_PATH` | Set to `1` to leave your `PATH` and your startup files as they are. |
 
 ## The checksum and the signature
 
