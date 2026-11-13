@@ -7,6 +7,20 @@ Notable changes are listed here, following
 
 ## [Unreleased]
 
+### Changed
+
+- On Linux and macOS, the installer puts its folder on the `PATH` of new terminals,
+  with one line in the startup file of your shell, and prints the line to use
+  `sentinel` in the same terminal. `SENTINEL_NO_MODIFY_PATH=1` leaves the files alone.
+- On Linux, when your user may not use Docker, `sentinel up` says so and gives the
+  command that fixes it, instead of reporting that Docker is not running.
+
+### Added
+
+- An end-to-end workflow that installs `sentinel` with the one-line installer on a clean
+  Ubuntu and a clean macOS machine, runs `sentinel up`, signs in as the owner, and runs
+  `sentinel down` and `up` again.
+
 ## [0.2.2] - 2026-11-13
 
 ### Fixed

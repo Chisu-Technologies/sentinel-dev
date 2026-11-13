@@ -79,7 +79,10 @@ type Result struct {
 var (
 	ErrDockerMissing = errors.New("Docker is not installed. Install Docker Desktop (Windows, macOS) or Docker Engine (Linux), then run this again")
 	ErrDockerStopped = errors.New("Docker is installed but not running. Start Docker, then run this again")
-	ErrNeedEmail     = errors.New("the first run needs the email of the owner: sentinel up --email you@example.com")
+	// ErrDockerDenied is a Linux user outside the docker group: the daemon runs,
+	// and this user may not talk to it.
+	ErrDockerDenied = errors.New("your user may not use Docker. Run: sudo usermod -aG docker $USER, then log out and in again, and run this again")
+	ErrNeedEmail    = errors.New("the first run needs the email of the owner: sentinel up --email you@example.com")
 )
 
 func (i *Install) say(format string, a ...any) {
@@ -115,6 +118,9 @@ func (i *Install) CheckDocker(ctx context.Context) error {
 		return errors.New("Docker Compose v2 is not available. Update Docker, then run this again")
 	}
 	if res, err := i.Runner.Run(ctx, execx.Command{Name: "docker", Args: []string{"info", "--format", "{{.ServerVersion}}"}}); err != nil || res.ExitCode != 0 {
+		if strings.Contains(strings.ToLower(res.Stderr+res.Stdout), "permission denied") {
+			return ErrDockerDenied
+		}
 		return ErrDockerStopped
 	}
 	return nil
