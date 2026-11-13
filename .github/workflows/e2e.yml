@@ -20,7 +20,7 @@ permissions:
 
 jobs:
   up:
-    name: up (${{ matrix.os }})
+    name: up (${{ matrix.os }} ${{ matrix.colima }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
     strategy:
@@ -37,6 +37,15 @@ jobs:
           - os: macos-15-intel
             user_shell: /bin/zsh
             new_terminal: zsh -lic
+            colima: --vm-type vz --cpu 4 --memory 8
+          - os: macos-15-intel
+            user_shell: /bin/zsh
+            new_terminal: zsh -lic
+            colima: --vm-type vz --cpu 2 --memory 4
+          - os: macos-15-intel
+            user_shell: /bin/zsh
+            new_terminal: zsh -lic
+            colima: --vm-type qemu --cpu 4 --memory 8
     env:
       USER_SHELL: ${{ matrix.user_shell }}
       NEW_TERMINAL: ${{ matrix.new_terminal }}
@@ -48,7 +57,7 @@ jobs:
           brew install --quiet docker docker-compose colima
           mkdir -p ~/.docker/cli-plugins
           ln -sfn "$(brew --prefix)/opt/docker-compose/bin/docker-compose" ~/.docker/cli-plugins/docker-compose
-          colima start --cpu 4 --memory 8 --disk 60
+          colima start ${{ matrix.colima }} --disk 60
           docker info --format '{{.ServerVersion}}'
 
       # The runner's own PATH may already hold ~/.local/bin; a new user's does not.
@@ -101,6 +110,11 @@ jobs:
           docker ps -a || true
           if [ "$RUNNER_OS" = macOS ]; then
             colima list || true
+            echo "== limactl processes"; pgrep -lf limactl || echo none
+            echo "== crash reports"; ls -la ~/Library/Logs/DiagnosticReports /Library/Logs/DiagnosticReports 2>/dev/null | grep -i -E 'lima|qemu|colima' || echo none
+            for r in ~/Library/Logs/DiagnosticReports/*lima*; do [ -f "$r" ] && head -c 3000 "$r"; done
+            echo "== system log"; log show --last 20m --style compact --predicate 'process CONTAINS "limactl" OR eventMessage CONTAINS "limactl" OR eventMessage CONTAINS[c] "jetsam"' 2>/dev/null | tail -n 40
+            echo "== host memory"; vm_stat | head -8; sysctl hw.memsize hw.ncpu
             for f in ~/.colima/_lima/colima/ha.stderr.log ~/.colima/_lima/colima/serial*.log; do
               [ -f "$f" ] && { echo "== $f"; tail -n 40 "$f"; }
             done
