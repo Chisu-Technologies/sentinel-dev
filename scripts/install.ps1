@@ -55,6 +55,21 @@ function Install-Sentinel {
     }
     $asset = "sentinel_windows_$arch.zip"
 
+    # Without a version, ask GitHub which release is the latest and download that
+    # tag. The `latest/download` address went on pointing at the previous release
+    # for minutes after a new one was published, and a checksum list and an
+    # archive read through it could even come from two different releases.
+    if ($version -eq '' -and -not $fromDirectory -and $base -eq "https://github.com/$repo/releases") {
+        try {
+            $latest = Invoke-RestMethod -UseBasicParsing -Headers @{ 'Accept' = 'application/vnd.github+json'; 'Cache-Control' = 'no-cache' } `
+                -Uri ("https://api.github.com/repos/$repo/releases/latest?nocache=" + [Guid]::NewGuid().ToString('N'))
+            if ("$($latest.tag_name)" -match '^v[0-9]+\.[0-9]+\.[0-9]+$') { $version = "$($latest.tag_name)" }
+        }
+        catch {
+            # The API is rate-limited per address; `latest/download` still works.
+        }
+    }
+
     $dir = "$env:SENTINEL_INSTALL_DIR"
     if ($dir -eq '') { $dir = Join-Path $env:LOCALAPPDATA 'Programs\sentinel' }
 
@@ -141,9 +156,24 @@ function Install-Sentinel {
         $name = 'sentinel'
         try { $name = (& $target version) } catch { }
         Write-Output "Installed $name in $dir"
-        $onPath = ($env:Path -split ';') | Where-Object { $_.TrimEnd('\') -eq $dir.TrimEnd('\') }
-        if (-not $onPath) {
-            Write-Output "$dir is not in your PATH. Add it, or run $target."
+        # The folder goes on the user's PATH, so `sentinel` works in this window
+        # and in every new one. Only the user's own PATH is changed, and only
+        # when the folder is not on it yet. SENTINEL_NO_MODIFY_PATH=1 leaves it.
+        $sameDir = { param($entry) $entry.TrimEnd('\') -ieq $dir.TrimEnd('\') }
+        $userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
+        $entries = @("$userPath" -split ';' | Where-Object { $_ -ne '' })
+        $onUserPath = @($entries | Where-Object { & $sameDir $_ }).Count -gt 0
+        if ("$env:SENTINEL_NO_MODIFY_PATH" -eq '1') {
+            if (-not $onUserPath) { Write-Output "$dir is not in your PATH. Add it, or run $target." }
+        }
+        else {
+            if (-not $onUserPath) {
+                [Environment]::SetEnvironmentVariable('Path', (($entries + $dir) -join ';'), 'User')
+                Write-Output "Added $dir to your PATH."
+            }
+            if (@($env:Path -split ';' | Where-Object { & $sameDir $_ }).Count -eq 0) {
+                $env:Path = "$env:Path;$dir"
+            }
         }
     }
     finally {

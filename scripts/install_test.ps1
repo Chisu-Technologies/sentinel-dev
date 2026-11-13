@@ -59,7 +59,9 @@ function Install($rel, $Cosign = $null, $Vars = @{}) {
     }
     $saved = @{}
     $set = @{ Path = "$bin;$cleanPath"; SENTINEL_DOWNLOAD_BASE = $rel; SENTINEL_INSTALL_DIR = $script:dir;
-        SENTINEL_VERSION = ''; SENTINEL_REQUIRE_SIGNATURE = '' }
+        SENTINEL_VERSION = ''; SENTINEL_REQUIRE_SIGNATURE = ''
+        # The tests must not change the PATH of the person who runs them.
+        SENTINEL_NO_MODIFY_PATH = '1' }
     foreach ($key in $Vars.Keys) { $set[$key] = $Vars[$key] }
     foreach ($key in $set.Keys) {
         $saved[$key] = [Environment]::GetEnvironmentVariable($key)
