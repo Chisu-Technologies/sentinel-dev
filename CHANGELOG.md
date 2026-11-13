@@ -7,6 +7,14 @@ Notable changes are listed here, following
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-11-13
+
+### Fixed
+
+- `sentinel up` keeps its files in `.sentinel/local` in the home folder. On Windows it
+  used a folder under `AppData`, which Docker Desktop did not see: the first `up`
+  failed while starting the package proxy.
+
 ## [0.2.0] - 2026-11-13
 
 ### Added
