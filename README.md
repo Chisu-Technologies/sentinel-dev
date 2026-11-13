@@ -49,14 +49,21 @@ Read [how it works](docs/how-it-works.md) and the [commands](docs/commands.md).
 
 ## Try what exists
 
-With Go 1.26 or newer:
+On Linux and macOS:
 
 ```bash
-go install github.com/Chisu-Technologies/sentinel-dev/cmd/sentinel@latest
+curl -fsSL https://raw.githubusercontent.com/Chisu-Technologies/sentinel-dev/main/scripts/install.sh | sh
 ```
 
-No release has been published yet. An installer of one command and signed releases
-are ready for the first one; see [installing the command](docs/install.md).
+On Windows, in PowerShell:
+
+```powershell
+irm https://raw.githubusercontent.com/Chisu-Technologies/sentinel-dev/main/scripts/install.ps1 | iex
+```
+
+What the installer does, and how to check a download, is in
+[installing the command](docs/install.md). With Go 1.26 or newer you can also build it:
+`go install github.com/Chisu-Technologies/sentinel-dev/cmd/sentinel@latest`.
 
 ```bash
 sentinel doctor

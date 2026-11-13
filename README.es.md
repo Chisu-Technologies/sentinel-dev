@@ -54,14 +54,21 @@ Lee [cómo funciona](docs/how-it-works.md) y los [comandos](docs/commands.md).
 
 ## Prueba lo que ya existe
 
-Con Go 1.26 o posterior:
+En Linux y macOS:
 
 ```bash
-go install github.com/Chisu-Technologies/sentinel-dev/cmd/sentinel@latest
+curl -fsSL https://raw.githubusercontent.com/Chisu-Technologies/sentinel-dev/main/scripts/install.sh | sh
 ```
 
-Todavía no se ha publicado ninguna versión. El instalador de un comando y los releases
-firmados están listos para la primera; mira [cómo instalar el comando](docs/install.md).
+En Windows, en PowerShell:
+
+```powershell
+irm https://raw.githubusercontent.com/Chisu-Technologies/sentinel-dev/main/scripts/install.ps1 | iex
+```
+
+Qué hace el instalador, y cómo comprobar una descarga, está en
+[cómo instalar el comando](docs/install.md). Con Go 1.26 o posterior también puedes
+compilarlo: `go install github.com/Chisu-Technologies/sentinel-dev/cmd/sentinel@latest`.
 
 ```bash
 sentinel doctor

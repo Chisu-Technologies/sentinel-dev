@@ -1,9 +1,8 @@
 # Installing the command
 
-> **No release has been published yet.** The installers and the release workflow are in
-> the repository, and they have nothing to download until the first version is tagged
-> and published. Until then, build from source: with Go 1.26 or newer,
-> `go install github.com/Chisu-Technologies/sentinel-dev/cmd/sentinel@latest`.
+Releases are on the [releases page](https://github.com/Chisu-Technologies/sentinel-dev/releases).
+With Go 1.26 or newer you can also build from source:
+`go install github.com/Chisu-Technologies/sentinel-dev/cmd/sentinel@latest`.
 
 ## With the installer
 
