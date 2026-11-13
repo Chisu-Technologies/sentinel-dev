@@ -18,7 +18,8 @@ const defaultWatchTimeout = 2 * time.Hour
 func runWatch(ctx context.Context, args []string, env Env) int {
 	fs := flag.NewFlagSet("watch", flag.ContinueOnError)
 	timeout := fs.Duration("timeout", defaultWatchTimeout, "how long to follow the run, such as 30m")
-	if code := parse(fs, args, env, "watch [--timeout <duration>] <run id>"); code >= 0 {
+	raw := fs.Bool("raw", false, "print the log as the server gives it, one JSON event per line")
+	if code := parse(fs, args, env, "watch [--timeout <duration>] [--raw] <run id>"); code >= 0 {
 		return code
 	}
 	if fs.NArg() != 1 {
@@ -43,6 +44,20 @@ func runWatch(ctx context.Context, args []string, env Env) int {
 
 	w := newWaiter(ctx, env, client, *timeout)
 	defer w.cancel()
+	logs := &logFormatter{clean: func(s string) string { return client.Clean(s, server.MaxDetail) }}
+	show := func(text string) {
+		if *raw {
+			fmt.Fprint(env.Stdout, text)
+		} else {
+			fmt.Fprint(env.Stdout, logs.write(text))
+		}
+	}
+	// However watching ends, the last line of the log is not held back.
+	defer func() {
+		if !*raw {
+			fmt.Fprint(env.Stdout, logs.flush())
+		}
+	}()
 	fail := func(format string, a ...any) int {
 		fmt.Fprintf(env.Stderr, "sentinel: "+format+"\n", a...)
 		return ExitFailed
@@ -68,7 +83,7 @@ func runWatch(ctx context.Context, args []string, env Env) int {
 			return nil
 		}
 		text = client.CleanText(text)
-		fmt.Fprint(env.Stdout, newLogText(lastLog, text))
+		show(newLogText(lastLog, text))
 		lastLog = text
 		return nil
 	}
