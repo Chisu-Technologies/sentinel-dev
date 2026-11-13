@@ -7,10 +7,12 @@
 | Command | What it does |
 | --- | --- |
 | `sentinel cancel <run id>` | Stop a run of a Sentinel server. |
+| `sentinel down` | Stop Sentinel on this machine. Its data stays. |
 | `sentinel doctor` | Check that git, the GitHub CLI and ssh are installed on this machine, and that `gh` is signed in to github.com. |
 | `sentinel doctor <destination>` | Check a server before installing on it: operating system, architecture, privileges, systemd, memory and Docker. It only reads: it installs and configures nothing on the server. |
 | `sentinel run --dry-run "<task>"` | Show what a task would send from this repository: the GitHub repository, the commit GitHub already has, and the files in the patch. It sends nothing. |
 | `sentinel runs` | List the latest runs of a Sentinel server: status, repository, pull request, cost, start and title. |
+| `sentinel up --email <address>` | Run Sentinel on this machine, with Docker, and print a link to sign in to its panel. |
 | `sentinel verify <pull request>` | Ask a Sentinel server to verify an existing pull request, wait, and print the verdict. |
 | `sentinel version` | Print the version. |
 | `sentinel watch <run id>` | Follow a run of a Sentinel server until it ends, printing its status changes and its log. |
@@ -72,6 +74,26 @@
     gives it, one JSON event per line.
     `--timeout <duration>` is how long to follow, `2h` by default; the run continues
     on the server after it, and so after Ctrl-C.
+- `sentinel up` runs the open edition of Sentinel on this machine: the panel, the
+  server and an agent sandbox, with Docker. It needs Docker Desktop (Windows, macOS) or
+  Docker Engine with the Compose plugin (Linux).
+  - The first time it needs `--email`, the owner of this installation. It creates the
+    secrets of the installation (they are never printed), downloads the images, prepares
+    the database and starts everything. At the end it prints the address of the panel,
+    `http://localhost:8080`, and a link to sign in. The link works once and expires in
+    15 minutes.
+  - Running it again updates and starts what is stopped. It keeps the secrets and the
+    data. `--sign-in` prints a new sign-in link.
+  - It keeps its files in one folder: `sentinel/local` under your user configuration
+    folder, or the one in `SENTINEL_HOME` or `--dir`.
+  - An installation of the open edition has no limits on runs, members or repositories.
+  - The images are built for `linux/amd64`. On Apple Silicon, Docker runs them under
+    emulation; that has not been measured yet.
+- `sentinel down` stops what `sentinel up` started. It removes nothing: the next
+  `sentinel up` starts it again with the same data.
+  - Exit status of `sentinel up` and `sentinel down`: `0` on success, `1` when Docker is
+    missing or stopped, a step fails or the first run has no `--email`, `2` when the
+    command line was wrong.
   - Exit status of `sentinel cancel`: `0` when the run was stopped, when the server
     accepted the stop, or when the run had already ended; `1` for a run the server
     does not know, a refusal, a missing variable or an error from the server; `2`

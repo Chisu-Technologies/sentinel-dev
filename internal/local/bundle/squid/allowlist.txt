@@ -1,0 +1,93 @@
+# ===========================================================================
+# Sentinel sandbox — Squid ALLOW-LIST de dominios (PHASE4 §2.1 / §7).
+#
+# Deny-by-default: el proxy SOLO permite los dominios listados aquí. Todo lo
+# demás se rechaza. Esta es la ÚNICA salida a internet del contenedor efímero
+# (red restringida sentinel_sandbox_net → pkg-proxy). Código NO confiable del
+# repo objetivo no puede exfiltrar datos ni hacer SSRF: no hay otra ruta.
+#
+# FORMATO (Squid `dstdomain`): un dominio por línea, SIN el punto inicial. En
+# Squid, `dstdomain ejemplo.com` ya cubre `ejemplo.com` Y TODOS sus subdominios
+# (api.ejemplo.com, etc.). NO añadir además `.ejemplo.com`: Squid lo rechaza
+# como redundante ("'.x' is a subdomain of 'x'") y ABORTA el arranque (FATAL).
+# Por eso aquí va solo la forma sin punto.
+#
+# POLÍTICA DE EDICIÓN: añade dominios SOLO cuando un stack los necesite para
+# instalar deps. Mínimo por stack (least-privilege). Revisión del operador
+# requerida para cualquier alta (es la frontera de egress de código no confiable).
+# ===========================================================================
+
+# --- Python (PyPI) — ACTIVO (Fases 1-2) -----------------------------------
+pypi.org
+files.pythonhosted.org
+pythonhosted.org
+
+# --- GitHub (deps VCS: pip/npm/go git+https, y clonado de fuentes) — ACTIVO
+github.com
+codeload.github.com
+githubusercontent.com
+
+# --- Node (npm) — ACTIVAR con el stack node (Fase 3 ya soporta node) -------
+registry.npmjs.org
+npmjs.org
+# pnpm/yarn vía corepack (descargan el binario del gestor y paquetes).
+registry.yarnpkg.com
+get.pnpm.io
+
+# --- Go — ACTIVAR con el stack go -----------------------------------------
+proxy.golang.org
+sum.golang.org
+golang.org
+storage.googleapis.com
+
+# --- Rust (crates) — ACTIVAR con el stack rust ----------------------------
+crates.io
+static.crates.io
+index.crates.io
+
+# --- Java (Maven Central) — ACTIVAR con el stack java ---------------------
+repo.maven.apache.org
+repo1.maven.org
+maven.apache.org
+
+# --- PHP (Composer / Packagist) — stack php -------------------------------
+packagist.org
+repo.packagist.org
+api.github.com
+
+# --- Ruby (Bundler / RubyGems) — stack ruby -------------------------------
+rubygems.org
+index.rubygems.org
+
+# --- .NET / C# (NuGet) — stack dotnet -------------------------------------
+api.nuget.org
+nuget.org
+dist.nuget.org
+
+# --- Elixir (Hex) — stack elixir ------------------------------------------
+hex.pm
+repo.hex.pm
+builds.hex.pm
+
+# --- Swift (SwiftPM: deps por git, ya cubierto por github.com) -------------
+# SPM resuelve deps clonando repos git → github.com (arriba) suele bastar.
+
+# --- Dart / Flutter (pub.dev) — stack flutter -----------------------------
+pub.dev
+pub.dartlang.org
+storage.googleapis.com
+
+# --- Gradle (distribución del wrapper) — stack java/gradle ----------------
+services.gradle.org
+plugins.gradle.org
+gradle.org
+
+# --- Conda (Anaconda) — stack python+conda --------------------------------
+repo.anaconda.com
+conda.anaconda.org
+anaconda.org
+
+# --- Bun (runtime+gestor) — stack node/bun --------------------------------
+bun.sh
+
+# (Rush usa el registry npm, ya permitido arriba.)

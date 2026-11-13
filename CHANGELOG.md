@@ -7,6 +7,11 @@ Notable changes are listed here, following
 
 ## [Unreleased]
 
+### Added
+
+- `sentinel up`: runs the open edition of Sentinel on this machine with Docker, and
+  prints a link to sign in to its panel. `sentinel down` stops it and keeps its data.
+
 ### Changed
 
 - `sentinel watch` prints each event of the run log as one short line: the time, who
