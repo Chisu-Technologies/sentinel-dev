@@ -19,10 +19,10 @@ permissions:
   contents: read
 
 jobs:
-  up:
-    name: up (${{ matrix.os }} ${{ matrix.colima }})
+  new-user:
+    name: ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 60
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
@@ -31,28 +31,20 @@ jobs:
           - os: ubuntu-latest
             user_shell: /bin/bash
             new_terminal: bash -ic
-          # On macOS it is a login zsh. GitHub's macOS runners have no Docker, and
-          # only the Intel ones can run the Linux VM for it (colima), which also
-          # runs the amd64 images natively. With Apple's own virtualization (vz)
-          # the VM stopped by itself during the image download in three runs.
-          - os: macos-15-intel
+            up: true
+          # On macOS it is a login zsh. GitHub's macOS runners have no Docker, so
+          # this job stops after the install. A Linux VM for Docker on them (colima
+          # on the Intel runners, with Apple's virtualization and with qemu) lost its
+          # Docker daemon a minute into the image download in four runs out of four.
+          - os: macos-latest
             user_shell: /bin/zsh
             new_terminal: zsh -lic
-            colima: --vm-type qemu --cpu 4 --memory 8
+            up: false
     env:
       USER_SHELL: ${{ matrix.user_shell }}
       NEW_TERMINAL: ${{ matrix.new_terminal }}
       INSTALLER_REF: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
-      - name: Docker for macOS (colima, in place of Docker Desktop)
-        if: runner.os == 'macOS'
-        run: |
-          brew install --quiet docker docker-compose colima qemu
-          mkdir -p ~/.docker/cli-plugins
-          ln -sfn "$(brew --prefix)/opt/docker-compose/bin/docker-compose" ~/.docker/cli-plugins/docker-compose
-          colima start ${{ matrix.colima }} --disk 60
-          docker info --format '{{.ServerVersion}}'
-
       # The runner's own PATH may already hold ~/.local/bin; a new user's does not.
       # Each command below runs in a clean environment, as a new window would, so
       # sentinel is found only through what the installer wrote.
@@ -72,6 +64,7 @@ jobs:
           "$RUNNER_TEMP/term" 'command -v sentinel && sentinel version'
 
       - name: sentinel up
+        if: matrix.up
         run: |
           start=$(date +%s)
           # The sign-in link is a one-time token: it goes to a file, not to the log.
@@ -80,6 +73,7 @@ jobs:
           grep -F "Sentinel is running: http://localhost:8080" up.txt
 
       - name: The sign-in link opens the panel as the owner
+        if: matrix.up
         run: |
           link=$(grep -o 'http://localhost:8080/api/auth/verify?token=[A-Za-z0-9_-]*' up.txt)
           test -n "$link"
@@ -89,6 +83,7 @@ jobs:
           test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/)" = 200
 
       - name: down, then up again with the same owner
+        if: matrix.up
         run: |
           "$RUNNER_TEMP/term" 'sentinel down'
           test -z "$(docker ps -q --filter label=com.docker.compose.project=sentinel)"
@@ -97,19 +92,8 @@ jobs:
           "$RUNNER_TEMP/term" 'sentinel up --sign-in' | grep -q 'http://localhost:8080/api/auth/verify?token='
 
       - name: What was running, if anything failed
-        if: failure()
+        if: failure() && matrix.up
         run: |
           cat up.txt again.txt 2>/dev/null | grep -v 'token=' || true
           docker ps -a || true
-          if [ "$RUNNER_OS" = macOS ]; then
-            colima list || true
-            echo "== limactl processes"; pgrep -lf limactl || echo none
-            echo "== crash reports"; ls -la ~/Library/Logs/DiagnosticReports /Library/Logs/DiagnosticReports 2>/dev/null | grep -i -E 'lima|qemu|colima' || echo none
-            for r in ~/Library/Logs/DiagnosticReports/*lima*; do [ -f "$r" ] && head -c 3000 "$r"; done
-            echo "== system log"; log show --last 20m --style compact --predicate 'process CONTAINS "limactl" OR eventMessage CONTAINS "limactl" OR eventMessage CONTAINS[c] "jetsam"' 2>/dev/null | tail -n 40
-            echo "== host memory"; vm_stat | head -8; sysctl hw.memsize hw.ncpu
-            for f in ~/.colima/_lima/colima/ha.stderr.log ~/.colima/_lima/colima/serial*.log; do
-              [ -f "$f" ] && { echo "== $f"; tail -n 40 "$f"; }
-            done
-          fi
           cd ~/.sentinel/local 2>/dev/null && docker compose -p sentinel --env-file .env -f compose.yaml logs --tail 40 || true

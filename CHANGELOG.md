@@ -18,8 +18,9 @@ Notable changes are listed here, following
 ### Added
 
 - An end-to-end workflow that installs `sentinel` with the one-line installer on a clean
-  Ubuntu and a clean macOS machine, runs `sentinel up`, signs in as the owner, and runs
-  `sentinel down` and `up` again.
+  Ubuntu machine, runs `sentinel up`, signs in as the owner, and runs `sentinel down`
+  and `up` again. On macOS it checks the install and a new terminal only: GitHub's macOS
+  machines have no Docker that holds up through the image download.
 
 ## [0.2.2] - 2026-11-13
 
