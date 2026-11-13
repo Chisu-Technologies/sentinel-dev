@@ -7,7 +7,9 @@ Notable changes are listed here, following
 
 ## [Unreleased]
 
-Nothing has been released.
+## [0.1.0] - 2026-11-13
+
+The first release.
 
 ### Added
 
@@ -26,7 +28,7 @@ Nothing has been released.
 - `sentinel version`.
 - Installers for Linux, macOS (`scripts/install.sh`) and Windows
   (`scripts/install.ps1`), and a release workflow that builds one archive per system
-  and signs their checksums. No release has been published with it yet.
+  and signs their checksums.
 
 ### Changed
 
