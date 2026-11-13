@@ -10,6 +10,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"io/fs"
 	"net/http"
 	"strings"
 	"time"
@@ -46,6 +47,10 @@ type Env struct {
 	// Sleep waits for d, or returns early with the error of ctx. Nil means a
 	// real timer. It exists so a test does not wait for the clock.
 	Sleep func(ctx context.Context, d time.Duration) error
+	// Bundle is what `up` brings up. Nil means the bundle built into the command.
+	Bundle fs.FS
+	// Rand is the source of the secrets `up` creates. Nil means crypto/rand.
+	Rand io.Reader
 }
 
 func (e Env) getenv(name string) string {
@@ -65,8 +70,10 @@ Usage:
 Commands:
   cancel <run id>           Stop a run of a Sentinel server
   doctor [destination]      Check this machine, or a server before installing on it
+  down                      Stop Sentinel on this machine; its data stays
   run --dry-run "<task>"    Show what a task would send from this repository
   runs                      List the runs of a Sentinel server
+  up                        Run Sentinel on this machine, with Docker
   verify <pull request>     Ask a Sentinel server to verify a pull request
   watch <run id>            Follow a run until it ends
   version                   Print the version
@@ -91,6 +98,10 @@ func Run(ctx context.Context, args []string, env Env) int {
 		return runCancel(ctx, rest, env)
 	case "doctor":
 		return runDoctor(ctx, rest, env)
+	case "down":
+		return runDown(ctx, rest, env)
+	case "up":
+		return runUp(ctx, rest, env)
 	case "run":
 		return runRun(ctx, rest, env)
 	case "runs":

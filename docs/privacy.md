@@ -12,6 +12,9 @@ the state of the run. `sentinel runs` and `sentinel watch` send your API key and
 id, and read back the state and the recent log lines of your runs. `sentinel cancel`
 sends your API key and a run id, and reads back the state of that run. None of them
 reads or sends your working tree.
+`sentinel up` downloads the images of Sentinel from the GitHub Container Registry
+(`ghcr.io`) and runs them on this machine; the secrets it creates stay in its folder on
+this machine. `sentinel down` connects to nothing.
 `sentinel doctor <destination>` connects to the server you name, with your own `ssh`,
 and to nothing else. `sentinel run --dry-run` reads your repository with git and
 connects to nothing; it prints file names, not file contents.

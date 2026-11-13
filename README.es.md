@@ -17,10 +17,10 @@ corre en un sandbox que nunca tiene tus llaves. Un segundo agente, que no escrib
 cambio, lo prueba. El resultado es un pull request para que lo revises; el agente no
 puede hacer merge.
 
-> **Pre-alfa.** Hoy solo existen `sentinel cancel`, `sentinel doctor`,
-> `sentinel run --dry-run`, `sentinel runs`, `sentinel verify`, `sentinel version` y
-> `sentinel watch`. El resto de esta página es el diseño previsto; mira la
-> [hoja de ruta](docs/roadmap.md).
+> **Pre-alfa.** Hoy solo existen `sentinel up`, `sentinel down`, `sentinel cancel`,
+> `sentinel doctor`, `sentinel run --dry-run`, `sentinel runs`, `sentinel verify`,
+> `sentinel version` y `sentinel watch`. El resto de esta página es el diseño previsto;
+> mira la [hoja de ruta](docs/roadmap.md).
 
 ## Cómo va a funcionar
 
@@ -69,6 +69,13 @@ irm https://raw.githubusercontent.com/Chisu-Technologies/sentinel-dev/main/scrip
 Qué hace el instalador, y cómo comprobar una descarga, está en
 [cómo instalar el comando](docs/install.md). Con Go 1.26 o posterior también puedes
 compilarlo: `go install github.com/Chisu-Technologies/sentinel-dev/cmd/sentinel@latest`.
+
+Con Docker encendido, esto arranca Sentinel en tu máquina e imprime un enlace para
+entrar a su panel:
+
+```bash
+sentinel up --email tu@ejemplo.com
+```
 
 ```bash
 sentinel doctor

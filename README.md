@@ -13,10 +13,10 @@ Sentinel runs coding agents on a machine you control. Each task runs in a sandbo
 never holds your keys. A second agent, which did not write the change, tests it. The
 result is a pull request for you to review; the agent cannot merge.
 
-> **Pre-alpha.** Only `sentinel cancel`, `sentinel doctor`, `sentinel run --dry-run`,
-> `sentinel runs`, `sentinel verify`, `sentinel version` and `sentinel watch` exist
-> today. The rest of this page is the planned design; see the
-> [roadmap](docs/roadmap.md).
+> **Pre-alpha.** Only `sentinel up`, `sentinel down`, `sentinel cancel`,
+> `sentinel doctor`, `sentinel run --dry-run`, `sentinel runs`, `sentinel verify`,
+> `sentinel version` and `sentinel watch` exist today. The rest of this page is the
+> planned design; see the [roadmap](docs/roadmap.md).
 
 ## How it will work
 
@@ -64,6 +64,13 @@ irm https://raw.githubusercontent.com/Chisu-Technologies/sentinel-dev/main/scrip
 What the installer does, and how to check a download, is in
 [installing the command](docs/install.md). With Go 1.26 or newer you can also build it:
 `go install github.com/Chisu-Technologies/sentinel-dev/cmd/sentinel@latest`.
+
+With Docker running, this starts Sentinel on your machine and prints a link to sign in
+to its panel:
+
+```bash
+sentinel up --email you@example.com
+```
 
 ```bash
 sentinel doctor
