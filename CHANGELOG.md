@@ -7,6 +7,12 @@ Notable changes are listed here, following
 
 ## [Unreleased]
 
+### Changed
+
+- `sentinel watch` prints each event of the run log as one short line: the time, who
+  acted and what it did. `--raw` prints the log as the server gives it, one JSON
+  event per line, as 0.1.0 did.
+
 ## [0.1.0] - 2026-11-13
 
 The first release.

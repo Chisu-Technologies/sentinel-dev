@@ -65,8 +65,11 @@
     fields.
   - `sentinel watch` takes the id of one run, as `sentinel runs` shows it. It asks for
     the state of the run every 5 seconds and prints each change of status to
-    standard error. It prints to standard output the recent lines of the run log, as
-    the server gives them, and only the lines that are new since the last time.
+    standard error. It prints to standard output the recent lines of the run log,
+    only the lines that are new since the last time, one short line per event: the
+    time, who acted (`implementer`, `qa`) and what it did. A line the client does not
+    recognise as an event is printed as it came. `--raw` prints the log as the server
+    gives it, one JSON event per line.
     `--timeout <duration>` is how long to follow, `2h` by default; the run continues
     on the server after it, and so after Ctrl-C.
   - Exit status of `sentinel cancel`: `0` when the run was stopped, when the server
