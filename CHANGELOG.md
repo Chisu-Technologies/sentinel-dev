@@ -7,6 +7,18 @@ Notable changes are listed here, following
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-11-13
+
+### Fixed
+
+- The installers ask GitHub which release is the latest and download that tag. Right
+  after a release, the address they used went on serving the previous one for minutes.
+
+### Changed
+
+- On Windows, the installer adds its folder to your user `PATH`, so `sentinel` works
+  without any step of your own. `SENTINEL_NO_MODIFY_PATH=1` leaves the `PATH` alone.
+
 ## [0.2.1] - 2026-11-13
 
 ### Fixed

@@ -68,6 +68,23 @@ fetch() {
   esac
 }
 
+# latest_tag prints the tag of the latest release, or nothing when GitHub's API
+# cannot be reached (it is rate-limited per address); `latest/download` is then
+# used as before.
+latest_tag() {
+  api="https://api.github.com/repos/$REPO/releases/latest"
+  if have curl; then
+    answer=$(curl --proto '=https' --tlsv1.2 -fsSL -H 'Cache-Control: no-cache' "$api" 2>/dev/null) || return 0
+  elif have wget; then
+    answer=$(wget --https-only -q -O - "$api" 2>/dev/null) || return 0
+  else
+    return 0
+  fi
+  tag=$(printf '%s\n' "$answer" | sed -n 's/^ *"tag_name": *"\(v[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\)".*/\1/p' | head -n 1)
+  [ -n "$tag" ] && printf '%s\n' "$tag"
+  return 0
+}
+
 sha256_of() {
   if have sha256sum; then
     sha256sum "$1" | cut -d ' ' -f 1
@@ -118,6 +135,14 @@ main() {
     "" | v[0-9]*.[0-9]*.[0-9]*) ;;
     *) fail "SENTINEL_VERSION must be a tag such as v0.1.0." ;;
   esac
+
+  # Without a version, ask GitHub which release is the latest and download that
+  # tag. The `latest/download` address went on pointing at the previous release
+  # for minutes after a new one was published, and a checksum list and an
+  # archive read through it could come from two different releases.
+  if [ -z "$version" ] && [ "$base" = "https://github.com/$REPO/releases" ]; then
+    version=$(latest_tag || true)
+  fi
 
   # Assigned first: the failure of a command substitution inside `set --` is lost.
   target=$(platform) || exit 1

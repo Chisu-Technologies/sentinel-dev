@@ -20,13 +20,16 @@ irm https://raw.githubusercontent.com/Chisu-Technologies/sentinel-dev/main/scrip
 
 What the installer does, and nothing else:
 
-- It downloads the archive for your system and the `SHA256SUMS` of the same release,
-  over https.
+- It asks GitHub which release is the latest, then downloads the archive for your
+  system and the `SHA256SUMS` of that release, over https.
 - It refuses to install when the checksum of the archive is not the one `SHA256SUMS`
   lists.
 - It writes one file, the `sentinel` binary: in `~/.local/bin` on Linux and macOS, in
-  `%LOCALAPPDATA%\Programs\sentinel` on Windows. It asks for no password, never runs
-  `sudo` and does not change your `PATH`; it tells you when the directory is not in it.
+  `%LOCALAPPDATA%\Programs\sentinel` on Windows. It asks for no password and never runs
+  `sudo`.
+- On Windows it adds that folder to your user `PATH`, so `sentinel` works in the same
+  window and in new ones; it changes nothing else. On Linux and macOS it does not change
+  your `PATH`; it tells you when the directory is not in it.
 - Running it again replaces the binary with the latest release.
 
 | Variable | What it does |
@@ -35,6 +38,7 @@ What the installer does, and nothing else:
 | `SENTINEL_INSTALL_DIR` | Put the binary in this directory. |
 | `SENTINEL_DOWNLOAD_BASE` | Read releases from here: an https address that mirrors the release pages, or a directory that holds the files of one release. For a machine without access to GitHub. |
 | `SENTINEL_REQUIRE_SIGNATURE` | Set to `1` to stop unless the signature was checked. |
+| `SENTINEL_NO_MODIFY_PATH` | Set to `1` on Windows to leave your `PATH` as it is. |
 
 ## The checksum and the signature
 
