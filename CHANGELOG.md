@@ -7,6 +7,8 @@ Notable changes are listed here, following
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-14
+
 ### Changed
 
 - `sentinel up` needs the GitHub CLI signed in to github.com. Sentinel reaches GitHub
