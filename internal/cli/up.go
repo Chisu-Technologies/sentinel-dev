@@ -59,7 +59,8 @@ func runUp(ctx context.Context, args []string, env Env) int {
 		}
 		*dir = d
 	}
-	result, err := newInstall(env, *dir).Up(ctx, *email, *signIn)
+	install := newInstall(env, *dir)
+	result, err := install.Up(ctx, *email, *signIn)
 	if err != nil {
 		fmt.Fprintf(env.Stderr, "sentinel up: %v\n", err)
 		return ExitFailed
@@ -73,6 +74,9 @@ func runUp(ctx context.Context, args []string, env Env) int {
 		fmt.Fprintln(env.Stdout, result.SignInURL)
 	} else {
 		fmt.Fprintln(env.Stdout, "To get a new sign-in link: sentinel up --sign-in")
+	}
+	if !install.HasGitHubApp() {
+		fmt.Fprintln(env.Stdout, "To let it work on your repositories, connect it to GitHub: sentinel github")
 	}
 	return ExitOK
 }

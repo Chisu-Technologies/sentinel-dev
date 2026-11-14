@@ -13,8 +13,8 @@ Sentinel runs coding agents on a machine you control. Each task runs in a sandbo
 never holds your keys. A second agent, which did not write the change, tests it. The
 result is a pull request for you to review; the agent cannot merge.
 
-> **Pre-alpha.** Only `sentinel up`, `sentinel down`, `sentinel cancel`,
-> `sentinel doctor`, `sentinel run --dry-run`, `sentinel runs`, `sentinel verify`,
+> **Pre-alpha.** Only `sentinel up`, `sentinel down`, `sentinel github`,
+> `sentinel cancel`, `sentinel doctor`, `sentinel run --dry-run`, `sentinel runs`, `sentinel verify`,
 > `sentinel version` and `sentinel watch` exist today. The rest of this page is the
 > planned design; see the [roadmap](docs/roadmap.md).
 
@@ -70,6 +70,13 @@ to its panel:
 
 ```bash
 sentinel up --email you@example.com
+```
+
+Then this connects it to GitHub, with a GitHub App of its own, so it can work on the
+repositories you choose:
+
+```bash
+sentinel github
 ```
 
 ```bash

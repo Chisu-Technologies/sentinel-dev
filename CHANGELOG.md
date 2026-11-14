@@ -7,6 +7,14 @@ Notable changes are listed here, following
 
 ## [Unreleased]
 
+### Added
+
+- `sentinel github` connects Sentinel on this machine to GitHub. It registers a private
+  GitHub App for the installation through GitHub's app manifest flow, keeps its
+  credentials in the installation's `.env`, restarts Sentinel and opens the panel where
+  the App is installed on repositories. The App has no webhook.
+- `sentinel up` says how to connect GitHub while the installation has no App.
+
 ## [0.2.3] - 2026-11-13
 
 ### Changed

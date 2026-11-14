@@ -8,6 +8,7 @@
 | --- | --- |
 | `sentinel cancel <run id>` | Stop a run of a Sentinel server. |
 | `sentinel down` | Stop Sentinel on this machine. Its data stays. |
+| `sentinel github` | Connect Sentinel on this machine to GitHub, through a GitHub App of its own. |
 | `sentinel doctor` | Check that git, the GitHub CLI and ssh are installed on this machine, and that `gh` is signed in to github.com. |
 | `sentinel doctor <destination>` | Check a server before installing on it: operating system, architecture, privileges, systemd, memory and Docker. It only reads: it installs and configures nothing on the server. |
 | `sentinel run --dry-run "<task>"` | Show what a task would send from this repository: the GitHub repository, the commit GitHub already has, and the files in the patch. It sends nothing. |
@@ -90,11 +91,38 @@
   - An installation of the open edition has no limits on runs, members or repositories.
   - The images are built for `linux/amd64`. On Apple Silicon, Docker runs them under
     emulation; that has not been measured yet.
+- `sentinel github` connects the installation that `sentinel up` started to GitHub.
+  Sentinel works on repositories only through a GitHub App, and an installation on
+  your machine has its own: this command registers it, through GitHub's
+  [app manifest flow](https://docs.github.com/en/apps/sharing-github-apps/registering-a-github-app-from-a-manifest).
+  - It opens your browser on GitHub with the App filled in; you confirm it there. GitHub
+    sends a one-time code back to the command, on this machine only (`127.0.0.1`), and
+    the command exchanges it for the App's credentials. They go into the `.env` of the
+    installation, which only you can read, and are never printed. Then it restarts
+    Sentinel and opens the page of the panel where **Connect GitHub** installs the App
+    on the repositories you choose.
+  - The App is private, named `sentinel-local-` and six letters or digits, and asks for
+    contents, pull requests, issues and workflows (write) and checks (read). It does not
+    ask for administration, so Sentinel cannot create repositories in an organization
+    with it.
+  - The App has no webhook: GitHub cannot reach a machine behind a home router.
+    Connecting repositories, runs and pull requests work without one. What GitHub would
+    announce by itself is not seen: a merged pull request, or a comment on one.
+  - `--org <name>` registers the App under that GitHub organization instead of your
+    account; you must be allowed to create apps there. `--no-browser` prints the address
+    to open instead of opening it.
+  - An installation keeps one App. Once it has one, the command says so and changes
+    nothing; to install the App on more repositories, use **Connect GitHub** in the
+    panel.
 - `sentinel down` stops what `sentinel up` started. It removes nothing: the next
   `sentinel up` starts it again with the same data.
   - Exit status of `sentinel up` and `sentinel down`: `0` on success, `1` when Docker is
     missing or stopped, a step fails or the first run has no `--email`, `2` when the
     command line was wrong.
+  - Exit status of `sentinel github`: `0` when the App was created and Sentinel
+    restarted with it; `1` when Sentinel is not installed, already has an App, GitHub
+    did not answer within 15 minutes or refused, or a step fails; `2` when the command
+    line was wrong.
   - Exit status of `sentinel cancel`: `0` when the run was stopped, when the server
     accepted the stop, or when the run had already ended; `1` for a run the server
     does not know, a refusal, a missing variable or an error from the server; `2`

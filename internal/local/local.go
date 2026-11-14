@@ -275,10 +275,7 @@ func (i *Install) ensureSecrets() (bool, error) {
 	if _, err := os.Stat(path); err == nil {
 		return false, nil
 	}
-	source := i.Rand
-	if source == nil {
-		source = rand.Reader
-	}
+	source := i.randSource()
 	var b strings.Builder
 	for _, s := range secrets {
 		value, err := s.make(source)
@@ -299,6 +296,19 @@ func (i *Install) ensureSecrets() (bool, error) {
 		return false, err
 	}
 	return true, file.Close()
+}
+
+func (i *Install) randSource() io.Reader {
+	if i.Rand != nil {
+		return i.Rand
+	}
+	return rand.Reader
+}
+
+// HasGitHubApp reports whether this installation has its GitHub App.
+func (i *Install) HasGitHubApp() bool {
+	data, err := os.ReadFile(filepath.Join(i.Dir, envFile))
+	return err == nil && envValue(string(data), "GITHUB_APP_ID") != ""
 }
 
 func (i *Install) readMark(name string) (string, error) {

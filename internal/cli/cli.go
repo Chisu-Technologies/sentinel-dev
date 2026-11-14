@@ -71,6 +71,7 @@ Commands:
   cancel <run id>           Stop a run of a Sentinel server
   doctor [destination]      Check this machine, or a server before installing on it
   down                      Stop Sentinel on this machine; its data stays
+  github                    Connect Sentinel on this machine to GitHub
   run --dry-run "<task>"    Show what a task would send from this repository
   runs                      List the runs of a Sentinel server
   up                        Run Sentinel on this machine, with Docker
@@ -100,6 +101,8 @@ func Run(ctx context.Context, args []string, env Env) int {
 		return runDoctor(ctx, rest, env)
 	case "down":
 		return runDown(ctx, rest, env)
+	case "github":
+		return runGitHub(ctx, rest, env)
 	case "up":
 		return runUp(ctx, rest, env)
 	case "run":

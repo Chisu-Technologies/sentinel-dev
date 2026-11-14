@@ -83,6 +83,34 @@ func TestUpPrintsThePanelAndASignInLinkTheFirstTime(t *testing.T) {
 	}
 }
 
+func TestUpSaysHowToConnectGitHubUntilTheInstallationHasAnApp(t *testing.T) {
+	home := filepath.Join(t.TempDir(), "local")
+	first := upCommand(t, &fakeDocker{}, home, "up", "--email", "you@example.com")
+	if !strings.Contains(first.stdout, "connect it to GitHub: sentinel github") {
+		t.Errorf("stdout = %q", first.stdout)
+	}
+
+	env, err := os.ReadFile(filepath.Join(home, ".env"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	os.WriteFile(filepath.Join(home, ".env"), append(env, []byte("GITHUB_APP_ID=7\n")...), 0o600)
+	again := upCommand(t, &fakeDocker{}, home, "up")
+	if again.code != ExitOK || strings.Contains(again.stdout, "sentinel github") {
+		t.Errorf("with an App: %+v", again)
+	}
+}
+
+func TestGitHubNeedsSentinelUpFirst(t *testing.T) {
+	got := upCommand(t, &fakeDocker{}, filepath.Join(t.TempDir(), "local"), "github", "--no-browser")
+	if got.code != ExitFailed || !strings.Contains(got.stderr, "run sentinel up first") {
+		t.Errorf("got %+v", got)
+	}
+	if got := upCommand(t, &fakeDocker{}, t.TempDir(), "github", "now"); got.code != ExitUsage {
+		t.Errorf("an argument: %+v", got)
+	}
+}
+
 func TestUpWithoutAnEmailTheFirstTimeSaysWhatToRun(t *testing.T) {
 	got := upCommand(t, &fakeDocker{}, filepath.Join(t.TempDir(), "local"), "up")
 	if got.code != ExitFailed || !strings.Contains(got.stderr, "sentinel up --email you@example.com") {
