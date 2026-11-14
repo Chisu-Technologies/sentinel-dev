@@ -7,6 +7,8 @@ Notable changes are listed here, following
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-11-14
+
 ### Fixed
 
 - `sentinel up` no longer creates an empty `tenant-releases` folder next to the
