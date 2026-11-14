@@ -14,6 +14,9 @@ Notable changes are listed here, following
   the installation's `.env`, reads it again on every run and prints the account.
   Without the GitHub CLI or a session, or with a session that cannot work on
   repositories, it stops and says what to run.
+- The end-to-end workflow signs the GitHub CLI in before `sentinel up`, with a token
+  kept as a repository secret. Without that secret it skips `sentinel up` and says so
+  in a warning, instead of passing as if it had run.
 
 ## [0.2.3] - 2026-11-13
 
