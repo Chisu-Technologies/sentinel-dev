@@ -33,6 +33,10 @@ func (f *fakeDocker) Run(_ context.Context, cmd execx.Command) (execx.Result, er
 	line := strings.Join(append([]string{cmd.Name}, cmd.Args...), " ")
 	f.calls = append(f.calls, line)
 	switch {
+	case line == "gh auth token --hostname github.com":
+		return execx.Result{Stdout: "gho_" + strings.Repeat("a", 36) + "\n"}, nil
+	case strings.Contains(line, "open_edition_github"):
+		return execx.Result{Stdout: `{"login": "you", "result": "ok"}` + "\n"}, nil
 	case strings.Contains(line, "run --rm --no-deps api"):
 		return execx.Result{ExitCode: 3, Stderr: "master_key_admission_marker_missing"}, nil
 	case strings.Contains(line, "open_edition_owner"):

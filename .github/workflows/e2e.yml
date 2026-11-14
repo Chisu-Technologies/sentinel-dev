@@ -63,8 +63,25 @@ jobs:
           chmod 755 "$RUNNER_TEMP/term"
           "$RUNNER_TEMP/term" 'command -v sentinel && sentinel version'
 
-      - name: sentinel up
+      # sentinel up works with the GitHub CLI session of the machine, as a user's
+      # would: the token of a test account, signed in like `gh auth login` does.
+      # Without that secret the rest is skipped, and the run says so.
+      - name: Sign in the GitHub CLI
+        id: gh
         if: matrix.up
+        env:
+          E2E_GITHUB_TOKEN: ${{ secrets.E2E_GITHUB_TOKEN }}
+        run: |
+          if [ -z "$E2E_GITHUB_TOKEN" ]; then
+            echo "::warning title=sentinel up was not tested::the repository has no E2E_GITHUB_TOKEN secret, so there is no GitHub CLI session to run it with"
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          printf '%s\n' "$E2E_GITHUB_TOKEN" | env -u GH_TOKEN -u GITHUB_TOKEN gh auth login --hostname github.com --with-token
+          echo "ready=true" >> "$GITHUB_OUTPUT"
+
+      - name: sentinel up
+        if: matrix.up && steps.gh.outputs.ready == 'true'
         run: |
           start=$(date +%s)
           # The sign-in link is a one-time token: it goes to a file, not to the log.
@@ -73,17 +90,21 @@ jobs:
           grep -F "Sentinel is running: http://localhost:8080" up.txt
 
       - name: The sign-in link opens the panel as the owner
-        if: matrix.up
+        if: matrix.up && steps.gh.outputs.ready == 'true'
         run: |
           link=$(grep -o 'http://localhost:8080/api/auth/verify?token=[A-Za-z0-9_-]*' up.txt)
           test -n "$link"
           echo "verify -> $(curl -s -c jar -o /dev/null -w '%{http_code}' "$link")"
           curl -s -b jar http://localhost:8080/api/auth/me > me.json
           python3 -c "import json; d = json.load(open('me.json')); print(d['email'], d['role']); assert d['email'] == 'e2e@example.test' and d['role'] == 'owner'"
+          grep -F "GitHub: " up.txt
+          # The organization is linked to the session's account: the repo picker answers.
+          curl -s -b jar http://localhost:8080/api/org/github/repos > repos.json
+          python3 -c "import json; d = json.load(open('repos.json')); print('repos:', len(d['repos'])); assert d['installed'] is True"
           test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/)" = 200
 
       - name: down, then up again with the same owner
-        if: matrix.up
+        if: matrix.up && steps.gh.outputs.ready == 'true'
         run: |
           "$RUNNER_TEMP/term" 'sentinel down'
           test -z "$(docker ps -q --filter label=com.docker.compose.project=sentinel)"

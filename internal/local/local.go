@@ -73,6 +73,9 @@ type Result struct {
 	Owner string
 	// Created is true when this run created the owner.
 	Created bool
+	// GitHubLogin is the GitHub account Sentinel works as: the one of the
+	// GitHub CLI session.
+	GitHubLogin string
 }
 
 // ErrDockerMissing and ErrDockerStopped are the two ways Docker is not ready.
@@ -83,7 +86,17 @@ var (
 	// and this user may not talk to it.
 	ErrDockerDenied = errors.New("your user may not use Docker. Run: sudo usermod -aG docker $USER, then log out and in again, and run this again")
 	ErrNeedEmail    = errors.New("the first run needs the email of the owner: sentinel up --email you@example.com")
+	// Sentinel reaches GitHub with the session of the GitHub CLI on this
+	// machine, and with nothing else.
+	ErrGitHubCLIMissing = errors.New("the GitHub CLI is not installed. Install it from https://cli.github.com, sign in with: gh auth login, then run this again")
+	ErrGitHubLogin      = errors.New("the GitHub CLI has no session. Sign in with: gh auth login, then run this again")
 )
+
+// GitHubTokenSetting is where the engine reads the token of the user's GitHub
+// CLI session.
+const GitHubTokenSetting = "SENTINEL_GITHUB_USER_TOKEN"
+
+var tokenPattern = regexp.MustCompile(`^[A-Za-z0-9_]{20,255}$`)
 
 func (i *Install) say(format string, a ...any) {
 	if i.Progress != nil {
@@ -144,6 +157,12 @@ func (i *Install) Up(ctx context.Context, email string, signIn bool) (Result, er
 	if owner != "" && email != "" && email != owner {
 		return result, fmt.Errorf("this installation already has an owner, %s", owner)
 	}
+	// Read before anything is written or downloaded: without a session there
+	// is nothing Sentinel could do on GitHub.
+	githubToken, err := i.GitHubToken(ctx)
+	if err != nil {
+		return result, err
+	}
 
 	if err := os.MkdirAll(i.Dir, 0o700); err != nil {
 		return result, err
@@ -157,6 +176,10 @@ func (i *Install) Up(ctx context.Context, email string, signIn bool) (Result, er
 	}
 	if created {
 		i.say("Created the secrets of this installation in %s", filepath.Join(i.Dir, envFile))
+	}
+	// Read again on every run, so a new `gh auth login` reaches Sentinel.
+	if err := i.setEnv(GitHubTokenSetting, githubToken); err != nil {
+		return result, fmt.Errorf("keeping the GitHub session: %w", err)
 	}
 
 	i.say("Downloading the images (the first time takes a few minutes)")
@@ -230,10 +253,50 @@ func (i *Install) Up(ctx context.Context, email string, signIn bool) (Result, er
 		result.SignInURL = answer.SignInURL
 		result.Owner = answer.Email
 		result.Created = answer.Created == "yes"
-		return result, nil
+	} else {
+		result.Owner = owner
 	}
-	result.Owner = owner
+
+	// After the owner: the first run creates the organization the account is
+	// linked to.
+	login, err := i.linkGitHub(ctx)
+	if err != nil {
+		return result, err
+	}
+	result.GitHubLogin = login
 	return result, nil
+}
+
+// What the engine's link tool answers, said as what to run.
+var gitHubLinkErrors = map[string]error{
+	"github_session_missing":          ErrGitHubLogin,
+	"github_session_rejected":         errors.New("GitHub does not accept the GitHub CLI session any more. Sign in again with: gh auth login, then run this again"),
+	"github_session_lacks_repo_scope": errors.New("the GitHub CLI session cannot work on repositories. Run: gh auth refresh -s repo, then run this again"),
+	"github_unreachable":              errors.New("GitHub could not be reached to check the GitHub CLI session. Check the connection and run this again"),
+}
+
+// linkGitHub has Sentinel record the account of the gh session as the GitHub
+// link of its organization, and returns that account's login.
+func (i *Install) linkGitHub(ctx context.Context) (string, error) {
+	res, err := i.Runner.Run(ctx, i.compose("exec", "-T", "api", "python", "-m", "tools.operator.open_edition_github"))
+	if err != nil {
+		return "", fmt.Errorf("linking GitHub: %w", err)
+	}
+	var answer struct {
+		Result    string `json:"result"`
+		ErrorCode string `json:"error_code"`
+		Login     string `json:"login"`
+	}
+	if json.Unmarshal([]byte(lastLine(res.Stdout)), &answer) != nil || (answer.Result != "ok" && answer.ErrorCode == "") {
+		return "", fmt.Errorf("linking GitHub failed (exit %d): %s", res.ExitCode, tail(res.Stderr+res.Stdout))
+	}
+	if answer.Result != "ok" {
+		if known, ok := gitHubLinkErrors[answer.ErrorCode]; ok {
+			return "", known
+		}
+		return "", fmt.Errorf("linking GitHub failed: %s", answer.ErrorCode)
+	}
+	return answer.Login, nil
 }
 
 // Down stops the installation. Its data stays.
@@ -246,6 +309,49 @@ func (i *Install) Down(ctx context.Context) error {
 	}
 	_, err := i.run(ctx, "stopping Sentinel", i.compose("stop"))
 	return err
+}
+
+// GitHubToken is the token of the GitHub CLI session on this machine. It is
+// never printed.
+func (i *Install) GitHubToken(ctx context.Context) (string, error) {
+	if _, err := i.Runner.LookPath("gh"); err != nil {
+		return "", ErrGitHubCLIMissing
+	}
+	res, err := i.Runner.Run(ctx, execx.Command{Name: "gh", Args: []string{"auth", "token", "--hostname", "github.com"}})
+	if err != nil || res.ExitCode != 0 {
+		return "", ErrGitHubLogin
+	}
+	token := strings.TrimSpace(res.Stdout)
+	if !tokenPattern.MatchString(token) {
+		return "", ErrGitHubLogin
+	}
+	return token, nil
+}
+
+// setEnv sets one setting of the .env, written whole beside it and renamed
+// over it, so an interrupted write leaves the previous file.
+func (i *Install) setEnv(name, value string) error {
+	path := filepath.Join(i.Dir, envFile)
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	lines := strings.Split(strings.TrimRight(string(data), "\n"), "\n")
+	found := false
+	for n, line := range lines {
+		if strings.HasPrefix(line, name+"=") {
+			lines[n] = name + "=" + value
+			found = true
+		}
+	}
+	if !found {
+		lines = append(lines, name+"="+value)
+	}
+	tmp := path + ".new"
+	if err := os.WriteFile(tmp, []byte(strings.Join(lines, "\n")+"\n"), 0o600); err != nil {
+		return err
+	}
+	return os.Rename(tmp, path)
 }
 
 func (i *Install) writeBundle() error {

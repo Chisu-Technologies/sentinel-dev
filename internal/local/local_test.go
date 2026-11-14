@@ -19,8 +19,10 @@ import (
 // part of its command line. Every command is recorded.
 type docker struct {
 	missing bool
-	rules   []rule
-	calls   []string
+	// noGH is a machine without the GitHub CLI.
+	noGH  bool
+	rules []rule
+	calls []string
 }
 
 type rule struct {
@@ -30,7 +32,7 @@ type rule struct {
 }
 
 func (d *docker) LookPath(name string) (string, error) {
-	if d.missing {
+	if d.missing || (d.noGH && name == "gh") {
 		return "", exec.ErrNotFound
 	}
 	return "/usr/bin/" + name, nil
@@ -59,8 +61,13 @@ func (d *docker) ran(part string) int {
 
 const owner = `{"created": "yes", "email": "you@example.com", "result": "ok", "sign_in_url": "http://localhost:8080/api/auth/verify?token=abc_DEF-1"}`
 
+// ghToken is the token of the GitHub CLI session the fakes answer with.
+var ghToken = "gho_" + strings.Repeat("A", 36)
+
 func freshDocker() *docker {
 	return &docker{rules: []rule{
+		{contains: "gh auth token --hostname github.com", result: execx.Result{Stdout: ghToken + "\n"}},
+		{contains: "open_edition_github", result: execx.Result{Stdout: `{"login": "you", "result": "ok"}` + "\n"}},
 		{contains: "compose -p sentinel --env-file", result: execx.Result{}},
 		// The first start of the API stops at the key check, as on a real server.
 		{contains: "run --rm --no-deps api", result: execx.Result{ExitCode: 3, Stderr: "AdmissionError: master_key_admission_marker_missing"}},
@@ -247,6 +254,7 @@ func TestDockerThatIsMissingOrStoppedIsSaidPlainly(t *testing.T) {
 
 func TestAFailedSchemaStepStopsTheSetupWithWhatDockerSaid(t *testing.T) {
 	d := &docker{rules: []rule{
+		{contains: "gh auth token", result: execx.Result{Stdout: ghToken + "\n"}},
 		{contains: "run --rm --no-deps api", result: execx.Result{ExitCode: 1, Stderr: "could not connect to the database"}},
 	}}
 	install, _ := newInstall(t, d)
@@ -296,5 +304,101 @@ func TestDownStopsAndKeepsTheData(t *testing.T) {
 	}
 	if d.ran(" stop") != 1 || d.ran("down") != 0 || d.ran(" -v") != 0 {
 		t.Errorf("calls = %v, want one stop and nothing that removes data", d.calls)
+	}
+}
+
+func TestUpUsesTheGitHubCLISessionAndReadsItAgainEachTime(t *testing.T) {
+	d := withOwner(freshDocker(), owner)
+	install, progress := newInstall(t, d)
+	if _, err := install.Up(context.Background(), "you@example.com", false); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(install.Dir, ".env")
+	first, _ := os.ReadFile(path)
+	if !strings.Contains(string(first), "SENTINEL_GITHUB_USER_TOKEN="+ghToken+"\n") {
+		t.Fatalf("the session is not in the .env:\n%s", first)
+	}
+	if strings.Contains(progress.String(), ghToken) {
+		t.Error("the token was printed")
+	}
+
+	// After another `gh auth login`, the next run hands Sentinel the new token
+	// and changes nothing else.
+	renewed := "gho_" + strings.Repeat("B", 36)
+	d.rules[1].result = execx.Result{Stdout: renewed + "\n"}
+	if _, err := install.Up(context.Background(), "", false); err != nil {
+		t.Fatal(err)
+	}
+	second, _ := os.ReadFile(path)
+	if strings.Count(string(second), "SENTINEL_GITHUB_USER_TOKEN=") != 1 || !strings.Contains(string(second), "SENTINEL_GITHUB_USER_TOKEN="+renewed+"\n") {
+		t.Errorf("the renewed session was not kept once:\n%s", second)
+	}
+	if strings.Replace(string(second), renewed, ghToken, 1) != string(first) {
+		t.Error("a later run changed more than the session")
+	}
+}
+
+func TestUpWithoutAGitHubCLISessionStopsBeforeDoingAnything(t *testing.T) {
+	cases := []struct {
+		name string
+		d    *docker
+		want error
+	}{
+		{"no GitHub CLI", &docker{noGH: true}, ErrGitHubCLIMissing},
+		{"signed out", &docker{rules: []rule{{contains: "gh auth token", result: execx.Result{ExitCode: 1, Stderr: "no oauth token found for github.com"}}}}, ErrGitHubLogin},
+		{"an answer that is not a token", &docker{rules: []rule{{contains: "gh auth token", result: execx.Result{Stdout: "not a token\n"}}}}, ErrGitHubLogin},
+	}
+	for _, c := range cases {
+		install, _ := newInstall(t, c.d)
+		if _, err := install.Up(context.Background(), "you@example.com", false); !errors.Is(err, c.want) {
+			t.Errorf("%s: err = %v, want %v", c.name, err, c.want)
+		}
+		if c.d.ran("pull") != 0 || c.d.ran("up -d") != 0 {
+			t.Errorf("%s: Docker was used: %v", c.name, c.d.calls)
+		}
+		if _, err := os.Stat(filepath.Join(install.Dir, ".env")); err == nil {
+			t.Errorf("%s: secrets were written", c.name)
+		}
+	}
+	if !strings.Contains(ErrGitHubLogin.Error(), "gh auth login") || !strings.Contains(ErrGitHubCLIMissing.Error(), "https://cli.github.com") {
+		t.Error("the errors do not say what to run")
+	}
+}
+
+func TestUpLinksTheSessionAccountAfterTheOwnerAndSaysWhatGitHubRefused(t *testing.T) {
+	d := withOwner(freshDocker(), owner)
+	install, _ := newInstall(t, d)
+	result, err := install.Up(context.Background(), "you@example.com", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.GitHubLogin != "you" {
+		t.Errorf("GitHubLogin = %q", result.GitHubLogin)
+	}
+	// The first run creates the organization the account is linked to.
+	ownerAt, linkAt := -1, -1
+	for n, call := range d.calls {
+		if strings.Contains(call, "open_edition_owner") {
+			ownerAt = n
+		}
+		if strings.Contains(call, "exec -T api python -m tools.operator.open_edition_github") {
+			linkAt = n
+		}
+	}
+	if ownerAt < 0 || linkAt < ownerAt {
+		t.Errorf("the link ran before the owner existed:\n%s", strings.Join(d.calls, "\n"))
+	}
+
+	for code, want := range map[string]string{
+		"github_session_rejected":         "gh auth login",
+		"github_session_lacks_repo_scope": "gh auth refresh -s repo",
+		"github_session_missing":          "gh auth login",
+	} {
+		refused := withOwner(freshDocker(), owner)
+		refused.rules[2].result = execx.Result{ExitCode: 2, Stdout: `{"error_code": "` + code + `", "result": "failed"}` + "\n"}
+		install, _ := newInstall(t, refused)
+		if _, err := install.Up(context.Background(), "you@example.com", false); err == nil || !strings.Contains(err.Error(), want) {
+			t.Errorf("%s: err = %v, want it to say %q", code, err, want)
+		}
 	}
 }
