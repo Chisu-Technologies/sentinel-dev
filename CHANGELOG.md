@@ -7,6 +7,13 @@ Notable changes are listed here, following
 
 ## [Unreleased]
 
+### Fixed
+
+- `sentinel up` no longer creates an empty `tenant-releases` folder next to the
+  installation: the bundle stops mounting a folder the open edition never reads.
+- When GitHub is not set up, the panel says to run `sentinel up` again with the GitHub
+  CLI signed in, instead of pointing to a token setting that no longer exists.
+
 ## [0.3.0] - 2026-11-14
 
 ### Changed
