@@ -7,6 +7,8 @@ Notable changes are listed here, following
 
 ## [Unreleased]
 
+## [0.2.3] - 2026-11-13
+
 ### Changed
 
 - On Linux and macOS, the installer puts its folder on the `PATH` of new terminals,
