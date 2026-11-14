@@ -73,6 +73,9 @@ type Result struct {
 	Owner string
 	// Created is true when this run created the owner.
 	Created bool
+	// GitHubLogin is the GitHub account Sentinel works as: the one of the
+	// GitHub CLI session.
+	GitHubLogin string
 }
 
 // ErrDockerMissing and ErrDockerStopped are the two ways Docker is not ready.
@@ -250,10 +253,50 @@ func (i *Install) Up(ctx context.Context, email string, signIn bool) (Result, er
 		result.SignInURL = answer.SignInURL
 		result.Owner = answer.Email
 		result.Created = answer.Created == "yes"
-		return result, nil
+	} else {
+		result.Owner = owner
 	}
-	result.Owner = owner
+
+	// After the owner: the first run creates the organization the account is
+	// linked to.
+	login, err := i.linkGitHub(ctx)
+	if err != nil {
+		return result, err
+	}
+	result.GitHubLogin = login
 	return result, nil
+}
+
+// What the engine's link tool answers, said as what to run.
+var gitHubLinkErrors = map[string]error{
+	"github_session_missing":          ErrGitHubLogin,
+	"github_session_rejected":         errors.New("GitHub does not accept the GitHub CLI session any more. Sign in again with: gh auth login, then run this again"),
+	"github_session_lacks_repo_scope": errors.New("the GitHub CLI session cannot work on repositories. Run: gh auth refresh -s repo, then run this again"),
+	"github_unreachable":              errors.New("GitHub could not be reached to check the GitHub CLI session. Check the connection and run this again"),
+}
+
+// linkGitHub has Sentinel record the account of the gh session as the GitHub
+// link of its organization, and returns that account's login.
+func (i *Install) linkGitHub(ctx context.Context) (string, error) {
+	res, err := i.Runner.Run(ctx, i.compose("exec", "-T", "api", "python", "-m", "tools.operator.open_edition_github"))
+	if err != nil {
+		return "", fmt.Errorf("linking GitHub: %w", err)
+	}
+	var answer struct {
+		Result    string `json:"result"`
+		ErrorCode string `json:"error_code"`
+		Login     string `json:"login"`
+	}
+	if json.Unmarshal([]byte(lastLine(res.Stdout)), &answer) != nil || (answer.Result != "ok" && answer.ErrorCode == "") {
+		return "", fmt.Errorf("linking GitHub failed (exit %d): %s", res.ExitCode, tail(res.Stderr+res.Stdout))
+	}
+	if answer.Result != "ok" {
+		if known, ok := gitHubLinkErrors[answer.ErrorCode]; ok {
+			return "", known
+		}
+		return "", fmt.Errorf("linking GitHub failed: %s", answer.ErrorCode)
+	}
+	return answer.Login, nil
 }
 
 // Down stops the installation. Its data stays.

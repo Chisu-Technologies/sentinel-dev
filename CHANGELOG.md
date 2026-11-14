@@ -7,6 +7,14 @@ Notable changes are listed here, following
 
 ## [Unreleased]
 
+### Changed
+
+- `sentinel up` needs the GitHub CLI signed in to github.com. Sentinel reaches GitHub
+  with that session and with nothing else: `sentinel up` reads its token, keeps it in
+  the installation's `.env`, reads it again on every run and prints the account.
+  Without the GitHub CLI or a session, or with a session that cannot work on
+  repositories, it stops and says what to run.
+
 ## [0.2.3] - 2026-11-13
 
 ### Changed

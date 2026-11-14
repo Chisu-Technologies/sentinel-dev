@@ -67,6 +67,7 @@ var ghToken = "gho_" + strings.Repeat("A", 36)
 func freshDocker() *docker {
 	return &docker{rules: []rule{
 		{contains: "gh auth token --hostname github.com", result: execx.Result{Stdout: ghToken + "\n"}},
+		{contains: "open_edition_github", result: execx.Result{Stdout: `{"login": "you", "result": "ok"}` + "\n"}},
 		{contains: "compose -p sentinel --env-file", result: execx.Result{}},
 		// The first start of the API stops at the key check, as on a real server.
 		{contains: "run --rm --no-deps api", result: execx.Result{ExitCode: 3, Stderr: "AdmissionError: master_key_admission_marker_missing"}},
@@ -361,5 +362,43 @@ func TestUpWithoutAGitHubCLISessionStopsBeforeDoingAnything(t *testing.T) {
 	}
 	if !strings.Contains(ErrGitHubLogin.Error(), "gh auth login") || !strings.Contains(ErrGitHubCLIMissing.Error(), "https://cli.github.com") {
 		t.Error("the errors do not say what to run")
+	}
+}
+
+func TestUpLinksTheSessionAccountAfterTheOwnerAndSaysWhatGitHubRefused(t *testing.T) {
+	d := withOwner(freshDocker(), owner)
+	install, _ := newInstall(t, d)
+	result, err := install.Up(context.Background(), "you@example.com", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.GitHubLogin != "you" {
+		t.Errorf("GitHubLogin = %q", result.GitHubLogin)
+	}
+	// The first run creates the organization the account is linked to.
+	ownerAt, linkAt := -1, -1
+	for n, call := range d.calls {
+		if strings.Contains(call, "open_edition_owner") {
+			ownerAt = n
+		}
+		if strings.Contains(call, "exec -T api python -m tools.operator.open_edition_github") {
+			linkAt = n
+		}
+	}
+	if ownerAt < 0 || linkAt < ownerAt {
+		t.Errorf("the link ran before the owner existed:\n%s", strings.Join(d.calls, "\n"))
+	}
+
+	for code, want := range map[string]string{
+		"github_session_rejected":         "gh auth login",
+		"github_session_lacks_repo_scope": "gh auth refresh -s repo",
+		"github_session_missing":          "gh auth login",
+	} {
+		refused := withOwner(freshDocker(), owner)
+		refused.rules[2].result = execx.Result{ExitCode: 2, Stdout: `{"error_code": "` + code + `", "result": "failed"}` + "\n"}
+		install, _ := newInstall(t, refused)
+		if _, err := install.Up(context.Background(), "you@example.com", false); err == nil || !strings.Contains(err.Error(), want) {
+			t.Errorf("%s: err = %v, want it to say %q", code, err, want)
+		}
 	}
 }

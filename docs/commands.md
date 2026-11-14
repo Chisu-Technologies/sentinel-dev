@@ -76,7 +76,18 @@
     on the server after it, and so after Ctrl-C.
 - `sentinel up` runs the open edition of Sentinel on this machine: the panel, the
   server and an agent sandbox, with Docker. It needs Docker Desktop (Windows, macOS) or
-  Docker Engine with the Compose plugin (Linux).
+  Docker Engine with the Compose plugin (Linux), and the [GitHub CLI](https://cli.github.com)
+  signed in to github.com (`gh auth login`).
+  - Sentinel reaches GitHub with the session of that GitHub CLI, and with nothing else.
+    `sentinel up` reads its token (`gh auth token`) before it writes or downloads
+    anything, keeps it in the installation's `.env` (never printed) and reads it again
+    on every run, so signing in again with `gh` reaches Sentinel at the next
+    `sentinel up`. Without the GitHub CLI, or without a session, it stops and says what
+    to run. The session needs the `repo` scope, which `gh auth login` grants; without
+    it, `sentinel up` says to run `gh auth refresh -s repo`.
+  - Sentinel then acts on GitHub as you: it sees the repositories you can see, and the
+    branches and pull requests it opens are yours. GitHub does not let the author of a
+    pull request approve it.
   - The first time it needs `--email`, the owner of this installation. It creates the
     secrets of the installation (they are never printed), downloads the images, prepares
     the database and starts everything. At the end it prints the address of the panel,

@@ -65,6 +65,7 @@ func runUp(ctx context.Context, args []string, env Env) int {
 		return ExitFailed
 	}
 	fmt.Fprintf(env.Stdout, "Sentinel is running: %s\n", result.PanelURL)
+	fmt.Fprintf(env.Stdout, "GitHub: %s, the account of the GitHub CLI session on this machine\n", result.GitHubLogin)
 	if result.SignInURL != "" {
 		if result.Created {
 			fmt.Fprintf(env.Stdout, "Owner: %s\n", result.Owner)

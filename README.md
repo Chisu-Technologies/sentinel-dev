@@ -65,8 +65,9 @@ What the installer does, and how to check a download, is in
 [installing the command](docs/install.md). With Go 1.26 or newer you can also build it:
 `go install github.com/Chisu-Technologies/sentinel-dev/cmd/sentinel@latest`.
 
-With Docker running, this starts Sentinel on your machine and prints a link to sign in
-to its panel:
+With Docker running and the [GitHub CLI](https://cli.github.com) signed in
+(`gh auth login`), this starts Sentinel on your machine and prints a link to sign in to
+its panel. Sentinel works on your repositories with that GitHub CLI session:
 
 ```bash
 sentinel up --email you@example.com
