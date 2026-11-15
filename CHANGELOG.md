@@ -23,6 +23,16 @@ Notable changes are listed here, following
 
 - `sentinel verify` accepts a server that queues the run, which answers `202 Accepted`
   instead of `201 Created`.
+- Receipts are signed again. `sentinel up` wrote a signing key the server could not
+  load, so every receipt showed as not signed; each `up` now replaces such a key and
+  says so, keeping every other setting.
+- The Brain works on one machine: it answered that the shared Brain was disabled.
+- Architect plans move past their first step on one machine.
+- An approved plan no longer waits forever for checks on a repository that has no
+  workflow running on pull requests; merging the plan's pull request is still yours.
+- A message to a failed, completed or cancelled plan is refused with a clear reason
+  instead of leaving the Architect's turn open.
+
 
 ## [0.3.2] - 2026-11-15
 
