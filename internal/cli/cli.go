@@ -31,6 +31,9 @@ const (
 
 // Env is what a command may touch.
 type Env struct {
+	// Stdin is what the command reads, for `up --github-token-stdin`. Nil
+	// means empty.
+	Stdin  io.Reader
 	Stdout io.Writer
 	Stderr io.Writer
 	Runner execx.Runner
@@ -73,6 +76,7 @@ Commands:
   down                      Stop Sentinel on this machine; its data stays
   run --dry-run "<task>"    Show what a task would send from this repository
   runs                      List the runs of a Sentinel server
+  setup <destination>       Run Sentinel on your server, over ssh
   up                        Run Sentinel on this machine, with Docker
   verify <pull request>     Ask a Sentinel server to verify a pull request
   watch <run id>            Follow a run until it ends
@@ -106,6 +110,8 @@ func Run(ctx context.Context, args []string, env Env) int {
 		return runRun(ctx, rest, env)
 	case "runs":
 		return runRuns(ctx, rest, env)
+	case "setup":
+		return runSetup(ctx, rest, env)
 	case "verify":
 		return runVerify(ctx, rest, env)
 	case "watch":

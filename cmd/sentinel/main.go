@@ -16,6 +16,7 @@ func main() {
 	// instead of leaving it behind.
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	code := cli.Run(ctx, os.Args[1:], cli.Env{
+		Stdin:  os.Stdin,
 		Stdout: os.Stdout,
 		Stderr: os.Stderr,
 		Runner: execx.OS{},

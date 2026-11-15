@@ -13,6 +13,7 @@ import (
 	"testing/fstest"
 
 	"github.com/Chisu-Technologies/sentinel-dev/internal/execx"
+	"github.com/Chisu-Technologies/sentinel-dev/internal/execx/execxtest"
 )
 
 // docker plays Docker: each command is answered by the first rule whose text is
@@ -399,6 +400,24 @@ func TestUpLinksTheSessionAccountAfterTheOwnerAndSaysWhatGitHubRefused(t *testin
 		install, _ := newInstall(t, refused)
 		if _, err := install.Up(context.Background(), "you@example.com", false); err == nil || !strings.Contains(err.Error(), want) {
 			t.Errorf("%s: err = %v, want it to say %q", code, err, want)
+		}
+	}
+}
+
+func TestTheTokenOnTheStandardInputReplacesTheGitHubCLI(t *testing.T) {
+	fake := &execxtest.Fake{Missing: map[string]bool{"gh": true}}
+	install := &Install{Runner: fake, GitHubTokenInput: strings.NewReader("gho_fromStandardInput0123456789\nignored\n")}
+	token, err := install.GitHubToken(context.Background())
+	if err != nil || token != "gho_fromStandardInput0123456789" {
+		t.Fatalf("token = %q, err = %v, want the first line", token, err)
+	}
+	if len(fake.Calls) != 0 {
+		t.Errorf("calls = %+v, want gh left alone", fake.Calls)
+	}
+	for _, input := range []string{"", "\n", "not a token; rm -rf /\n"} {
+		install.GitHubTokenInput = strings.NewReader(input)
+		if _, err := install.GitHubToken(context.Background()); !errors.Is(err, ErrGitHubTokenInput) {
+			t.Errorf("input %q: err = %v, want ErrGitHubTokenInput", input, err)
 		}
 	}
 }

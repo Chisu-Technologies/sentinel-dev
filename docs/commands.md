@@ -12,6 +12,7 @@
 | `sentinel doctor <destination>` | Check a server before installing on it: operating system, architecture, privileges, systemd, memory and Docker. It only reads: it installs and configures nothing on the server. |
 | `sentinel run --dry-run "<task>"` | Show what a task would send from this repository: the GitHub repository, the commit GitHub already has, and the files in the patch. It sends nothing. |
 | `sentinel runs` | List the latest runs of a Sentinel server: status, repository, pull request, cost, start and title. |
+| `sentinel setup <destination>` | Run Sentinel on your server, over ssh: `sentinel up` there, with the GitHub CLI session of this machine. |
 | `sentinel up --email <address>` | Run Sentinel on this machine, with Docker, and print a link to sign in to its panel. |
 | `sentinel verify <pull request>` | Ask a Sentinel server to verify an existing pull request, wait, and print the verdict. |
 | `sentinel version` | Print the version. |
@@ -101,6 +102,26 @@
   - An installation of the open edition has no limits on runs, members or repositories.
   - The images are built for `linux/amd64`. On Apple Silicon, Docker runs them under
     emulation; that has not been measured yet.
+- `sentinel setup <destination>` runs the open edition on a server instead of this
+  machine. It needs a release of `sentinel` here, the GitHub CLI signed in here, and
+  on the server Docker, `curl` and a user that may use Docker; it never runs `sudo`.
+  - It first runs the checks of `sentinel doctor <destination>` and stops on a failed
+    one or when Docker is missing. The privileges check does not stop it.
+  - It installs on the server the same release as this `sentinel`, with
+    `scripts/install.sh` read from that release, in `~/.local/bin`. A server that
+    already has that release keeps it.
+  - It then runs `sentinel up --github-token-stdin` there. The token of the GitHub CLI
+    session of this machine travels on the standard input of `ssh`, never in a
+    command line, and is kept in the server's installation like `sentinel up` keeps
+    it. Run `sentinel setup` again after `gh auth login` to give the server the new
+    session.
+  - `--email` and `--sign-in` mean what they mean for `sentinel up`.
+  - The panel listens only on the server's loopback. To open it from this machine,
+    keep `ssh -N -L 8080:127.0.0.1:8080 <destination>` running and open
+    `http://localhost:8080`.
+  - Running it again is safe: it updates and starts what is stopped, as `sentinel up`.
+  - Exit status: `0` on success, `1` when a check, the install or `sentinel up` on
+    the server fails, `2` when the command line was wrong.
 - `sentinel down` stops what `sentinel up` started. It removes nothing: the next
   `sentinel up` starts it again with the same data.
   - Exit status of `sentinel up` and `sentinel down`: `0` on success, `1` when Docker is
@@ -123,7 +144,6 @@
 
 | Command | What it will do | Phase |
 | --- | --- | --- |
-| `sentinel setup <destination>` | Install the runtime on your server over ssh, from signed releases. It asks only for what the server lacks, and running it again is safe. | 1 |
 | `sentinel login` | Sign in with GitHub, reusing the session of `gh`. | 1 |
 | `sentinel run "<task>"` | Send the task and the patch that `--dry-run` shows, and start a run. | 1 |
 | `sentinel pull [run]` | Fetch the branch of the pull request. | 1 |
