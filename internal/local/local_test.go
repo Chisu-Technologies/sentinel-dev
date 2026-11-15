@@ -3,6 +3,7 @@ package local
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"errors"
 	"os"
 	"os/exec"
@@ -173,6 +174,83 @@ func TestTheMasterKeyIsAFernetKey(t *testing.T) {
 	}
 	if len(key) != 44 || !strings.HasSuffix(key, "=") || strings.ContainsAny(key, "+/") {
 		t.Errorf("key %q is not 32 bytes in padded URL-safe base64", key)
+	}
+}
+
+// envValue reads one setting of the installation's .env.
+func envValue(t *testing.T, dir, name string) string {
+	t.Helper()
+	data, err := os.ReadFile(filepath.Join(dir, ".env"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, line := range strings.Split(string(data), "\n") {
+		if value, ok := strings.CutPrefix(line, name+"="); ok {
+			return value
+		}
+	}
+	return ""
+}
+
+func TestTheSigningKeyIsAnEd25519KeyTheServerLoads(t *testing.T) {
+	key, err := signingKey(bytes.NewReader(bytes.Repeat([]byte{7}, 32)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, err := base64.StdEncoding.DecodeString(key)
+	if err != nil || len(raw) != 32 {
+		t.Errorf("key %q is not 32 bytes in standard base64", key)
+	}
+
+	d := withOwner(freshDocker(), owner)
+	install, _ := newInstall(t, d)
+	if _, err := install.Up(context.Background(), "you@example.com", false); err != nil {
+		t.Fatal(err)
+	}
+	if !validSigningKey(envValue(t, install.Dir, "SENTINEL_SIGNING_KEY")) {
+		t.Error("a new installation got a signing key the server cannot use")
+	}
+}
+
+// Measured on 2026-11-15: up to 0.3.2 the key was 48 bytes in URL-safe base64,
+// the server could not load it and no receipt of an installation was signed.
+func TestAnUpReplacesASigningKeyTheServerCannotUseAndKeepsTheRest(t *testing.T) {
+	d := withOwner(freshDocker(), owner)
+	install, progress := newInstall(t, d)
+	if _, err := install.Up(context.Background(), "you@example.com", false); err != nil {
+		t.Fatal(err)
+	}
+	old, err := token(48)(bytes.NewReader(bytes.Repeat([]byte{3}, 48)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := install.setEnv("SENTINEL_SIGNING_KEY", old); err != nil {
+		t.Fatal(err)
+	}
+	master := envValue(t, install.Dir, "SENTINEL_MASTER_KEY")
+
+	progress.Reset()
+	if _, err := install.Up(context.Background(), "", false); err != nil {
+		t.Fatal(err)
+	}
+	repaired := envValue(t, install.Dir, "SENTINEL_SIGNING_KEY")
+	if repaired == old || !validSigningKey(repaired) {
+		t.Errorf("the old key was not replaced by a usable one")
+	}
+	if envValue(t, install.Dir, "SENTINEL_MASTER_KEY") != master {
+		t.Error("repairing the signing key changed another secret")
+	}
+	if !strings.Contains(progress.String(), "Replaced the receipt signing key") || strings.Contains(progress.String(), repaired) {
+		t.Errorf("progress = %q", progress.String())
+	}
+
+	// A usable key is kept.
+	progress.Reset()
+	if _, err := install.Up(context.Background(), "", false); err != nil {
+		t.Fatal(err)
+	}
+	if envValue(t, install.Dir, "SENTINEL_SIGNING_KEY") != repaired || strings.Contains(progress.String(), "Replaced") {
+		t.Error("a usable signing key was replaced")
 	}
 }
 
