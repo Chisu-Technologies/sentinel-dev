@@ -7,6 +7,8 @@ Notable changes are listed here, following
 
 ## [Unreleased]
 
+## [0.3.2] - 2026-11-15
+
 ### Added
 
 - `sentinel setup <destination>` runs Sentinel on your server over ssh: it checks the
