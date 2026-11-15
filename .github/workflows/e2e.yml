@@ -14,6 +14,11 @@ on:
       - internal/cli/up.go
       - .github/workflows/e2e.yml
   workflow_dispatch:
+    inputs:
+      version:
+        description: release tag for the setup job, such as v0.3.2
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -118,3 +123,79 @@ jobs:
           cat up.txt again.txt 2>/dev/null | grep -v 'token=' || true
           docker ps -a || true
           cd ~/.sentinel/local 2>/dev/null && docker compose -p sentinel --env-file .env -f compose.yaml logs --tail 40 || true
+
+  # sentinel setup against a real server over ssh. The "server" is a second user of
+  # the same runner, reached on localhost: setup installs the release there, as it
+  # would on another machine, and runs `sentinel up` with the session of this user.
+  # It needs a published release that has setup, so it does not run on pull requests.
+  setup:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      VERSION: ${{ github.event.release.tag_name || inputs.version }}
+    steps:
+      - name: Install the release for this user
+        run: |
+          test -n "$VERSION" || { echo "::error::no release: run it on a release, or on demand with a version"; exit 1; }
+          curl -fsSL "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${VERSION}/scripts/install.sh" |
+            SENTINEL_VERSION="$VERSION" SENTINEL_NO_MODIFY_PATH=1 sh
+          "$HOME/.local/bin/sentinel" version
+
+      - name: A server user, reachable over ssh without a password
+        run: |
+          sudo useradd --create-home --shell /bin/bash --groups docker srv
+          ssh-keygen -q -t ed25519 -N '' -f "$HOME/.ssh/id_ed25519"
+          sudo install -d -m 700 -o srv -g srv /home/srv/.ssh
+          sudo install -m 600 -o srv -g srv "$HOME/.ssh/id_ed25519.pub" /home/srv/.ssh/authorized_keys
+          sudo systemctl start ssh
+          ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new srv@localhost true
+
+      - name: Sign in the GitHub CLI
+        id: gh
+        env:
+          E2E_GITHUB_TOKEN: ${{ secrets.E2E_GITHUB_TOKEN }}
+        run: |
+          if [ -z "$E2E_GITHUB_TOKEN" ]; then
+            echo "::warning title=sentinel setup was not tested::the repository has no E2E_GITHUB_TOKEN secret"
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          printf '%s\n' "$E2E_GITHUB_TOKEN" | env -u GH_TOKEN -u GITHUB_TOKEN gh auth login --hostname github.com --with-token
+          echo "ready=true" >> "$GITHUB_OUTPUT"
+
+      - name: sentinel setup
+        if: steps.gh.outputs.ready == 'true'
+        run: |
+          start=$(date +%s)
+          # The sign-in link is a one-time token: it goes to a file, not to the log.
+          env -u GH_TOKEN -u GITHUB_TOKEN "$HOME/.local/bin/sentinel" setup --email e2e@example.test srv@localhost > setup.txt
+          echo "setup took $(( $(date +%s) - start ))s"
+          grep -F "Sentinel is running: http://localhost:8080" setup.txt
+          grep -F "ssh -N -L 8080:127.0.0.1:8080 srv@localhost" setup.txt
+          sudo -u srv test -x /home/srv/.local/bin/sentinel
+          test "$(sudo -u srv /home/srv/.local/bin/sentinel version | cut -d ' ' -f 2)" = "$VERSION"
+
+      # The server is this machine, so its loopback panel answers here without a tunnel.
+      - name: The sign-in link opens the server's panel as the owner, linked to GitHub
+        if: steps.gh.outputs.ready == 'true'
+        run: |
+          link=$(grep -o 'http://localhost:8080/api/auth/verify?token=[A-Za-z0-9_-]*' setup.txt)
+          test -n "$link"
+          echo "verify -> $(curl -s -c jar -o /dev/null -w '%{http_code}' "$link")"
+          curl -s -b jar http://localhost:8080/api/auth/me > me.json
+          python3 -c "import json; d = json.load(open('me.json')); assert d['email'] == 'e2e@example.test' and d['role'] == 'owner'"
+          curl -s -b jar http://localhost:8080/api/org/github/repos > repos.json
+          python3 -c "import json; d = json.load(open('repos.json')); print('repos:', len(d['repos'])); assert d['installed'] is True"
+
+      - name: setup again keeps the installation and the owner
+        if: steps.gh.outputs.ready == 'true'
+        run: |
+          env -u GH_TOKEN -u GITHUB_TOKEN "$HOME/.local/bin/sentinel" setup srv@localhost > again.txt
+          grep -F "To get a new sign-in link" again.txt
+
+      - name: What was running, if anything failed
+        if: failure()
+        run: |
+          cat setup.txt again.txt 2>/dev/null | grep -v 'token=' || true
+          docker ps -a || true

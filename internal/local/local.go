@@ -8,6 +8,7 @@
 package local
 
 import (
+	"bufio"
 	"context"
 	"crypto/rand"
 	"encoding/base64"
@@ -62,6 +63,10 @@ type Install struct {
 	Rand io.Reader
 	// Progress receives one line per step.
 	Progress io.Writer
+	// GitHubTokenInput, when set, holds the GitHub token on its first line
+	// instead of the GitHub CLI of this machine. `sentinel setup` uses it to
+	// bring its own session to a server that has no GitHub CLI.
+	GitHubTokenInput io.Reader
 }
 
 // Result is what `up` reports at the end.
@@ -86,6 +91,8 @@ var (
 	// and this user may not talk to it.
 	ErrDockerDenied = errors.New("your user may not use Docker. Run: sudo usermod -aG docker $USER, then log out and in again, and run this again")
 	ErrNeedEmail    = errors.New("the first run needs the email of the owner: sentinel up --email you@example.com")
+	// ErrGitHubTokenInput means the standard input held no GitHub token.
+	ErrGitHubTokenInput = errors.New("the standard input did not hold a GitHub token on its first line")
 	// Sentinel reaches GitHub with the session of the GitHub CLI on this
 	// machine, and with nothing else.
 	ErrGitHubCLIMissing = errors.New("the GitHub CLI is not installed. Install it from https://cli.github.com, sign in with: gh auth login, then run this again")
@@ -314,6 +321,17 @@ func (i *Install) Down(ctx context.Context) error {
 // GitHubToken is the token of the GitHub CLI session on this machine. It is
 // never printed.
 func (i *Install) GitHubToken(ctx context.Context) (string, error) {
+	if i.GitHubTokenInput != nil {
+		line, err := bufio.NewReader(io.LimitReader(i.GitHubTokenInput, 4096)).ReadString('\n')
+		if err != nil && !errors.Is(err, io.EOF) {
+			return "", ErrGitHubTokenInput
+		}
+		token := strings.TrimSpace(line)
+		if !tokenPattern.MatchString(token) {
+			return "", ErrGitHubTokenInput
+		}
+		return token, nil
+	}
 	if _, err := i.Runner.LookPath("gh"); err != nil {
 		return "", ErrGitHubCLIMissing
 	}

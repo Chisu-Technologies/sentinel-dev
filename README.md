@@ -14,8 +14,8 @@ never holds your keys. A second agent, which did not write the change, tests it.
 result is a pull request for you to review; the agent cannot merge.
 
 > **Pre-alpha.** Only `sentinel up`, `sentinel down`, `sentinel cancel`,
-> `sentinel doctor`, `sentinel run --dry-run`, `sentinel runs`, `sentinel verify`,
-> `sentinel version` and `sentinel watch` exist today. The rest of this page is the
+> `sentinel doctor`, `sentinel run --dry-run`, `sentinel runs`, `sentinel setup`,
+> `sentinel verify`, `sentinel version` and `sentinel watch` exist today. The rest of this page is the
 > planned design; see the [roadmap](docs/roadmap.md).
 
 ## How it will work

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/Chisu-Technologies/sentinel-dev/internal/local"
 )
@@ -44,7 +45,8 @@ func runUp(ctx context.Context, args []string, env Env) int {
 	email := fs.String("email", "", "the email of the owner; needed the first time")
 	dir := fs.String("dir", "", "the folder the installation keeps its files in")
 	signIn := fs.Bool("sign-in", false, "print a new sign-in link for the owner")
-	if code := parse(fs, args, env, "up [--email <address>] [--sign-in] [--dir <folder>]"); code >= 0 {
+	tokenStdin := fs.Bool("github-token-stdin", false, "read the GitHub token from the first line of the standard input instead of the GitHub CLI (sentinel setup uses it)")
+	if code := parse(fs, args, env, "up [--email <address>] [--sign-in] [--dir <folder>] [--github-token-stdin]"); code >= 0 {
 		return code
 	}
 	if fs.NArg() != 0 {
@@ -59,13 +61,24 @@ func runUp(ctx context.Context, args []string, env Env) int {
 		}
 		*dir = d
 	}
-	result, err := newInstall(env, *dir).Up(ctx, *email, *signIn)
+	install := newInstall(env, *dir)
+	if *tokenStdin {
+		install.GitHubTokenInput = env.Stdin
+		if install.GitHubTokenInput == nil {
+			install.GitHubTokenInput = strings.NewReader("")
+		}
+	}
+	result, err := install.Up(ctx, *email, *signIn)
 	if err != nil {
 		fmt.Fprintf(env.Stderr, "sentinel up: %v\n", err)
 		return ExitFailed
 	}
 	fmt.Fprintf(env.Stdout, "Sentinel is running: %s\n", result.PanelURL)
-	fmt.Fprintf(env.Stdout, "GitHub: %s, the account of the GitHub CLI session on this machine\n", result.GitHubLogin)
+	if *tokenStdin {
+		fmt.Fprintf(env.Stdout, "GitHub: %s, the account of the token on the standard input\n", result.GitHubLogin)
+	} else {
+		fmt.Fprintf(env.Stdout, "GitHub: %s, the account of the GitHub CLI session on this machine\n", result.GitHubLogin)
+	}
 	if result.SignInURL != "" {
 		if result.Created {
 			fmt.Fprintf(env.Stdout, "Owner: %s\n", result.Owner)

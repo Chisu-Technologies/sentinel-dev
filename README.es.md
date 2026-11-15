@@ -18,8 +18,8 @@ cambio, lo prueba. El resultado es un pull request para que lo revises; el agent
 puede hacer merge.
 
 > **Pre-alfa.** Hoy solo existen `sentinel up`, `sentinel down`, `sentinel cancel`,
-> `sentinel doctor`, `sentinel run --dry-run`, `sentinel runs`, `sentinel verify`,
-> `sentinel version` y `sentinel watch`. El resto de esta página es el diseño previsto;
+> `sentinel doctor`, `sentinel run --dry-run`, `sentinel runs`, `sentinel setup`,
+> `sentinel verify`, `sentinel version` y `sentinel watch`. El resto de esta página es el diseño previsto;
 > mira la [hoja de ruta](docs/roadmap.md).
 
 ## Cómo va a funcionar

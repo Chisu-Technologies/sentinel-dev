@@ -7,6 +7,14 @@ Notable changes are listed here, following
 
 ## [Unreleased]
 
+### Added
+
+- `sentinel setup <destination>` runs Sentinel on your server over ssh: it checks the
+  server, installs the same release of `sentinel` there and runs `sentinel up` with the
+  GitHub CLI session of this machine, passed on the standard input of `ssh`.
+- `sentinel up --github-token-stdin` reads the GitHub token from the standard input,
+  for a machine without the GitHub CLI.
+
 ## [0.3.1] - 2026-11-14
 
 ### Fixed
