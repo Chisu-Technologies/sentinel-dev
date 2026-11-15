@@ -14,6 +14,27 @@ Notable changes are listed here, following
   GitHub CLI session of this machine, passed on the standard input of `ssh`.
 - `sentinel up --github-token-stdin` reads the GitHub token from the standard input,
   for a machine without the GitHub CLI.
+- Sentinel follows its pull requests by asking GitHub once a minute, so merges and
+  review comments reach the run without a webhook or a public address.
+- Settings > Repositories can open Sentinel's pull requests as a bot. One click
+  creates a private GitHub App on your account and you choose the repositories it
+  may use; its pull requests come from `<app>[bot]`, so you can review and approve
+  them. It is optional: without it, Sentinel keeps using your GitHub CLI session.
+
+### Changed
+
+- Settings shows the open edition and this installation where it used to show
+  billing and a hosted machine, which do not exist in the open edition.
+- Each model call asks only for the output the run's remaining budget can pay for,
+  and a run stops before a call it cannot pay for instead of after it.
+
+### Fixed
+
+- Runs started on a local installation failed before they did any work: the worker
+  could not reach the local model broker, and after that every run stopped at its
+  first model call because the installation had no price list. Both work now.
+- Runs use the model you choose in Settings > AI keys. Before, they always used
+  the default model.
 
 ## [0.3.1] - 2026-11-14
 
