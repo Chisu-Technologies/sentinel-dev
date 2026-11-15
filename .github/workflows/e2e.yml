@@ -128,9 +128,11 @@ jobs:
   # the same runner, reached on localhost: setup installs the release there, as it
   # would on another machine, and runs `sentinel up` with the session of this user.
   # It needs a published release that has setup, so it does not run on pull requests.
+  # The runner is the server, so it is pinned to a release setup supports:
+  # ubuntu-latest moved to 26.04 and setup rightly refused it.
   setup:
     if: github.event_name != 'pull_request'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
     env:
       VERSION: ${{ github.event.release.tag_name || inputs.version }}
