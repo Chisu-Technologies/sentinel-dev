@@ -14,7 +14,7 @@ never holds your keys. A second agent, which did not write the change, tests it.
 result is a pull request for you to review; the agent cannot merge.
 
 > **Pre-alpha.** Only `sentinel up`, `sentinel down`, `sentinel cancel`,
-> `sentinel doctor`, `sentinel run --dry-run`, `sentinel runs`, `sentinel setup`,
+> `sentinel doctor`, `sentinel run`, `sentinel runs`, `sentinel setup`,
 > `sentinel verify`, `sentinel version` and `sentinel watch` exist today. The rest of this page is the
 > planned design; see the [roadmap](docs/roadmap.md).
 
@@ -92,7 +92,8 @@ sentinel verify 12
 The first form checks git, the GitHub CLI and ssh on your machine. The second checks a
 server before you install on it; it only reads, and installs nothing there. Each
 failed check prints how to fix it. The third shows what a task would send from the
-repository you are in, and sends nothing. The fourth asks a Sentinel server, the one in
+repository you are in, and sends nothing; without `--dry-run` it sends the task to the
+Sentinel server in `SENTINEL_URL` and waits for the pull request. The fourth asks a Sentinel server, the one in
 `SENTINEL_URL`, to verify pull request 12 of the repository you are in, and prints the
 verdict; see the [commands](docs/commands.md).
 
@@ -117,11 +118,13 @@ they used and how they ended. It will not receive prompts, code or diffs. The ex
 list is not final; it will be on the [privacy page](docs/privacy.md) before the first
 release, and what is not on it will not be sent.
 
-Today `sentinel cancel`, `sentinel verify`, `sentinel runs` and `sentinel watch` are the
-commands that contact a Sentinel server, the one in `SENTINEL_URL`. They send your API
-key, and the repository name and pull request number (`verify`) or a run id (`cancel`,
-`watch`); they read back the state of your runs, and `watch` their recent log lines.
-None of them reads or sends your working tree.
+Today `sentinel cancel`, `sentinel run`, `sentinel runs`, `sentinel verify` and
+`sentinel watch` are the commands that contact a Sentinel server, the one in
+`SENTINEL_URL`. They send your API key, and the repository name and pull request number
+(`verify`), a run id (`cancel`, `watch`), or the task, the repository name, the commit
+GitHub already has and a patch of your working tree (`run`); they read back the state of
+your runs, and `watch` their recent log lines. Only `sentinel run` reads your working
+tree and sends it, as the patch that `sentinel run --dry-run` lists.
 
 ## Requirements (planned)
 

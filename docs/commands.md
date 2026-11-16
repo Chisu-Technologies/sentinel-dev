@@ -10,7 +10,7 @@
 | `sentinel down` | Stop Sentinel on this machine. Its data stays. |
 | `sentinel doctor` | Check that git, the GitHub CLI and ssh are installed on this machine, and that `gh` is signed in to github.com. |
 | `sentinel doctor <destination>` | Check a server before installing on it: operating system, architecture, privileges, systemd, memory and Docker. It only reads: it installs and configures nothing on the server. |
-| `sentinel run --dry-run "<task>"` | Show what a task would send from this repository: the GitHub repository, the commit GitHub already has, and the files in the patch. It sends nothing. |
+| `sentinel run "<task>"` | Send a task and a patch of this working tree to a Sentinel server, wait, and print the pull request. With `--dry-run` it shows what would be sent: the GitHub repository, the commit GitHub already has, and the files in the patch. It then sends nothing. |
 | `sentinel runs` | List the latest runs of a Sentinel server: status, repository, pull request, cost, start and title. |
 | `sentinel setup <destination>` | Run Sentinel on your server, over ssh: `sentinel up` there, with the GitHub CLI session of this machine. |
 | `sentinel up --email <address>` | Run Sentinel on this machine, with Docker, and print a link to sign in to its panel. |
@@ -28,8 +28,25 @@
 - `sentinel run --dry-run` builds the patch from a copy of the git index, so your
   index, your branch and your working tree stay as they were. The patch holds the
   commits you have not pushed, your staged and unstaged changes, and new files that
-  are not ignored. It is limited to 3 MiB; past that, push your branch first. Without
-  `--dry-run` the command stops and says that sending is not available yet.
+  are not ignored. It is limited to 128 KiB; past that, push your branch first. A
+  changed file whose text is not UTF-8 cannot travel in the patch: commit and push it
+  first.
+- `sentinel run "<task>"` sends that patch with the task to the server in
+  `SENTINEL_URL`, with the same `SENTINEL_URL` and `SENTINEL_API_KEY` rules as
+  `sentinel verify`. The server starts from the commit GitHub already has, puts the
+  patch in the tree and opens a pull request for you to review. The first line of the
+  task is the title of the pull request; the whole task is its description.
+  - The server must say that it took the patch. A server that does not take local work
+    yet would do the task without it; `sentinel run` then stops the run and exits `1`.
+  - `--base <branch>` names the branch the pull request targets, when it is not the
+    default one. `--no-wait` prints the run id and stops. `--timeout <duration>` is how
+    long to wait, `2h` by default; the run continues on the server after it.
+  - `--json` prints one JSON object on standard output; progress goes to standard
+    error.
+  - Exit status: `0` when the run opened a pull request that passed QA, or when
+    `--dry-run` or `--no-wait` succeeded; `1` for a blocked, failed or stopped run, a
+    timeout, a missing variable or an error from the server; `2` when the command line
+    was wrong.
 - `sentinel verify` asks a server to check out the pull request, run the project's
   tests and an independent QA in a sandbox, and comment its verdict on the pull
   request; it does not push to the repository. It needs a Sentinel server that
@@ -145,7 +162,6 @@
 | Command | What it will do | Phase |
 | --- | --- | --- |
 | `sentinel login` | Sign in with GitHub, reusing the session of `gh`. | 1 |
-| `sentinel run "<task>"` | Send the task and the patch that `--dry-run` shows, and start a run. | 1 |
 | `sentinel pull [run]` | Fetch the branch of the pull request. | 1 |
 | `sentinel resume <run>` | Continue a paused run with a larger limit or another model. | 1 |
 | `sentinel stop` | Halt every run on the server until you allow them again. | 1 |

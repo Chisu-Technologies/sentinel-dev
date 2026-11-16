@@ -11,6 +11,8 @@ package server
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -195,6 +197,9 @@ type Run struct {
 	TotalCostUSD float64 `json:"total_cost_usd"`
 	StartedAt    *string `json:"started_at"`
 	FinishedAt   *string `json:"finished_at"`
+	// LocalPatchSHA256 comes only in the answer that creates a run sent with
+	// local work: the digest of the patch the server took.
+	LocalPatchSHA256 string `json:"local_patch_sha256"`
 }
 
 // StartRequest asks for the verification of an existing pull request.
@@ -246,15 +251,85 @@ func (s Story) Verdict() string {
 	return "UNKNOWN"
 }
 
-// StartVerify creates the run. The id the server returns is checked here, so
-// no caller can put an unchecked one in a path.
+// StartVerify creates the run that verifies a pull request.
 func (c *Client) StartVerify(ctx context.Context, req StartRequest) (Run, error) {
 	body := map[string]any{"repo": req.Repository, "mode": "verify_pr", "pr_number": req.PullNumber}
 	if req.BaseRef != "" {
 		body["base_ref"] = req.BaseRef
 	}
+	return c.start(ctx, body)
+}
+
+// TaskRequest is a task sent with `sentinel run`: what to do, the commit GitHub
+// has and the local work on top of it.
+type TaskRequest struct {
+	Repository string
+	// BaseRef is the branch the pull request targets; sent only when not empty.
+	BaseRef    string
+	Task       string
+	BaseCommit string
+	// Patch is sent only when not empty.
+	Patch []byte
+}
+
+// MaxTaskTitle bounds the title of the task, its first line, which becomes the
+// title of the pull request. The whole task is its description.
+const MaxTaskTitle = 120
+
+// StartTask creates the run that does a task. When it carries a patch, the
+// server must answer with the digest of the patch it took: a server that
+// predates local work would accept the request, ignore the patch and do the
+// task without it, so that answer is refused and the run is stopped.
+func (c *Client) StartTask(ctx context.Context, req TaskRequest) (Run, error) {
+	title, _, _ := strings.Cut(strings.TrimSpace(req.Task), "\n")
+	title = strings.TrimSpace(title)
+	if utf8.RuneCountInString(title) > MaxTaskTitle {
+		title = string([]rune(title)[:MaxTaskTitle-1]) + "…"
+	}
+	finding := map[string]any{
+		"id":          "TASK-1",
+		"title":       title,
+		"description": req.Task,
+		"severity":    "medium",
+		"category":    "general",
+	}
+	body := map[string]any{"repo": req.Repository, "mode": "review", "findings": []any{finding}, "base_commit": req.BaseCommit}
+	if req.BaseRef != "" {
+		body["base_ref"] = req.BaseRef
+	}
+	if len(req.Patch) > 0 {
+		body["patch"] = string(req.Patch)
+	}
+	run, err := c.start(ctx, body)
+	if err != nil || len(req.Patch) == 0 {
+		return run, err
+	}
+	sum := sha256.Sum256(req.Patch)
+	if run.LocalPatchSHA256 != hex.EncodeToString(sum[:]) {
+		if _, stopErr := c.Stop(ctx, run.ID); stopErr != nil {
+			return Run{}, fmt.Errorf("%w; stopping run %s failed too: %v", ErrNoLocalWork, run.ID, stopErr)
+		}
+		return Run{}, fmt.Errorf("%w; run %s was stopped", ErrNoLocalWork, run.ID)
+	}
+	return run, nil
+}
+
+// ErrNoLocalWork means the server did not take the patch of a task.
+var ErrNoLocalWork = errors.New("this server does not take local work yet; update it, or push your branch and run the task without changes")
+
+// start creates a run. A server that starts the run itself answers 201; one
+// that queues it for the machine that runs it answers 202. The id the server
+// returns is checked here, so no caller can put an unchecked one in a path.
+func (c *Client) start(ctx context.Context, body map[string]any) (Run, error) {
+	status, data, tooLarge, err := c.fetch(ctx, http.MethodPost, "/api/runs", body, "application/json")
+	if err != nil {
+		return Run{}, err
+	}
+	if status != http.StatusCreated && status != http.StatusAccepted {
+		return Run{}, c.apiError(status, data, tooLarge)
+	}
 	var run Run
-	if err := c.do(ctx, http.MethodPost, "/api/runs", body, http.StatusCreated, &run); err != nil {
+	if err := decode(data, tooLarge, &run); err != nil {
 		return Run{}, err
 	}
 	if !ValidRunID(run.ID) {
