@@ -117,17 +117,26 @@ func runTask(ctx context.Context, env Env, client *server.Client, task string, p
 	if err != nil {
 		return fail("%v", err)
 	}
-	status := client.Clean(run.Status, 64)
-	fmt.Fprintf(env.Stderr, "Run %s created (%s).\n", run.ID, status)
-
-	result := runResult{
+	return followRun(ctx, env, client, run, runResult{
 		Task:       task,
 		Repository: pkg.Repository,
 		BaseCommit: pkg.BaseCommit,
 		PatchFiles: len(pkg.Files),
-		RunID:      run.ID,
-		Status:     status,
+	}, noWait, timeout, asJSON)
+}
+
+// followRun reports a run that was just created: at once with noWait, else
+// when it ends, with its pull request and verdict. The commands that start a
+// run share it.
+func followRun(ctx context.Context, env Env, client *server.Client, run server.Run, result runResult, noWait bool, timeout time.Duration, asJSON bool) int {
+	fail := func(format string, a ...any) int {
+		fmt.Fprintf(env.Stderr, "sentinel: "+format+"\n", a...)
+		return ExitFailed
 	}
+	status := client.Clean(run.Status, 64)
+	fmt.Fprintf(env.Stderr, "Run %s created (%s).\n", run.ID, status)
+	result.RunID = run.ID
+	result.Status = status
 	if noWait {
 		return printRunResult(env, result, server.Story{}, asJSON, ExitOK)
 	}

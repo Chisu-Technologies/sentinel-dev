@@ -5,23 +5,24 @@
 
 ## Today
 
-`sentinel cancel`, `sentinel pull`, `sentinel run`, `sentinel stop`, `sentinel verify`,
-`sentinel runs` and `sentinel watch` are the commands that contact a Sentinel server, the one in
-`SENTINEL_URL`. `sentinel run` sends the task, the repository name, the commit GitHub
-already has, a patch of your working tree and your API key, and reads back the state of
-the run; the patch holds the files that `sentinel run --dry-run` lists. `sentinel verify`
-sends the repository name, the pull request number and your API key, and reads back
-the state of the run. `sentinel runs` and `sentinel watch` send your API key and a run
-id, and read back the state and the recent log lines of your runs. `sentinel cancel`
-sends your API key and a run id, and reads back the state of that run. `sentinel pull`
-sends your API key and a run id, then runs `git fetch` against your repository's own
-remote. `sentinel stop` sends only your API key. Only `sentinel run` reads or sends your
-working tree.
-`sentinel update` asks GitHub for the latest release of the command and downloads it;
-it sends nothing about this machine or its repositories.
-`sentinel up` downloads the images of Sentinel from the GitHub Container Registry
-(`ghcr.io`) and runs them on this machine; the secrets it creates stay in its folder on
-this machine. `sentinel down` connects to nothing.
+`sentinel cancel`, `sentinel pull`, `sentinel resume`, `sentinel run`,
+`sentinel stop`, `sentinel verify`, `sentinel runs` and `sentinel watch` are the
+commands that contact a Sentinel server, the one in `SENTINEL_URL`. `sentinel run`
+sends the task, the repository name, the commit GitHub already has, a patch of your
+working tree and your API key, and reads back the state of the run; the patch holds
+the files that `sentinel run --dry-run` lists. `sentinel verify` sends the repository
+name, the pull request number and your API key, and reads back the state of the run.
+`sentinel runs` and `sentinel watch` send your API key and a run id, and read back the
+state and the recent log lines of your runs. `sentinel cancel` sends your API key and
+a run id, and reads back the state of that run. `sentinel pull` sends your API key and
+a run id, then runs `git fetch` against your repository's own remote.
+`sentinel resume` sends your API key, a run id, the task the server already has for
+that run, and the limit you give. `sentinel stop` sends only your API key. Only
+`sentinel run` reads or sends your working tree. `sentinel update` asks GitHub for the
+latest release of the command and downloads it; it sends nothing about this machine or
+its repositories. `sentinel up` downloads the images of Sentinel from the GitHub
+Container Registry (`ghcr.io`) and runs them on this machine; the secrets it creates
+stay in its folder on this machine. `sentinel down` connects to nothing.
 `sentinel doctor <destination>` connects to the server you name, with your own `ssh`,
 and to nothing else. `sentinel run --dry-run` reads your repository with git and
 connects to nothing; it prints file names, not file contents.

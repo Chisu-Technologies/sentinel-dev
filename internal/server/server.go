@@ -200,6 +200,12 @@ type Run struct {
 	// LocalPatchSHA256 comes only in the answer that creates a run sent with
 	// local work: the digest of the patch the server took.
 	LocalPatchSHA256 string `json:"local_patch_sha256"`
+	// ResumedFrom comes only in the answer that creates a resume: the paused run
+	// it continues.
+	ResumedFrom string `json:"resumed_from"`
+	// Findings are the tasks of the run, as the server keeps them. They are
+	// sent back unchanged to resume it.
+	Findings []json.RawMessage `json:"findings"`
 }
 
 // StartRequest asks for the verification of an existing pull request.
@@ -310,6 +316,54 @@ func (c *Client) StartTask(ctx context.Context, req TaskRequest) (Run, error) {
 			return Run{}, fmt.Errorf("%w; stopping run %s failed too: %v", ErrNoLocalWork, run.ID, stopErr)
 		}
 		return Run{}, fmt.Errorf("%w; run %s was stopped", ErrNoLocalWork, run.ID)
+	}
+	return run, nil
+}
+
+// ResumeRequest continues a run that paused at its budget.
+type ResumeRequest struct {
+	Paused Run
+	// BudgetUSD is the new limit per task; zero keeps the organization's.
+	BudgetUSD float64
+	// BaseRef is sent only when not empty.
+	BaseRef string
+}
+
+// ErrNoResume means the server started the task afresh instead of resuming it.
+var ErrNoResume = errors.New("this server does not resume runs yet; update it, or resume the task from its panel")
+
+// StartResume starts the run that continues req.Paused from the work it kept.
+// The server names the run it continues in its answer; a server without resume
+// ignores the field and would do the task again from the start, so that run is
+// stopped at once.
+func (c *Client) StartResume(ctx context.Context, req ResumeRequest) (Run, error) {
+	if !ValidRunID(req.Paused.ID) {
+		return Run{}, errors.New("not a valid run id")
+	}
+	if len(req.Paused.Findings) != 1 {
+		return Run{}, fmt.Errorf("run %s carries %d tasks; only a run with one task can be resumed here", req.Paused.ID, len(req.Paused.Findings))
+	}
+	body := map[string]any{
+		"repo":          req.Paused.Repo,
+		"mode":          "review",
+		"findings":      req.Paused.Findings,
+		"resume_run_id": req.Paused.ID,
+	}
+	if req.BudgetUSD > 0 {
+		body["budget_usd_per_story"] = req.BudgetUSD
+	}
+	if req.BaseRef != "" {
+		body["base_ref"] = req.BaseRef
+	}
+	run, err := c.start(ctx, body)
+	if err != nil {
+		return Run{}, err
+	}
+	if run.ResumedFrom != req.Paused.ID {
+		if _, stopErr := c.Stop(ctx, run.ID); stopErr != nil {
+			return Run{}, fmt.Errorf("%w; stopping run %s failed too: %v", ErrNoResume, run.ID, stopErr)
+		}
+		return Run{}, fmt.Errorf("%w; run %s was stopped", ErrNoResume, run.ID)
 	}
 	return run, nil
 }

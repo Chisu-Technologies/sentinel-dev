@@ -11,6 +11,7 @@
 | `sentinel doctor` | Check that git, the GitHub CLI and ssh are installed on this machine, and that `gh` is signed in to github.com. |
 | `sentinel doctor <destination>` | Check a server before installing on it: operating system, architecture, privileges, systemd, memory and Docker. It only reads: it installs and configures nothing on the server. |
 | `sentinel pull <run id>` | Fetch the pull request of a run into the local branch `sentinel/<run id>` and switch to it. |
+| `sentinel resume <run id>` | Continue a run that paused at its budget, from the work it kept, and wait for the pull request. `--budget` sets the new limit per task. |
 | `sentinel run "<task>"` | Send a task and a patch of this working tree to a Sentinel server, wait, and print the pull request. With `--dry-run` it shows what would be sent: the GitHub repository, the commit GitHub already has, and the files in the patch. It then sends nothing. |
 | `sentinel runs` | List the latest runs of a Sentinel server: status, repository, pull request, cost, start and title. |
 | `sentinel setup <destination>` | Run Sentinel on your server, over ssh: `sentinel up` there, with the GitHub CLI session of this machine. |
@@ -159,6 +160,17 @@
   changes. It never merges, rebases, stashes or discards.
   - Exit status: `0` when the branch was created or moved, `1` otherwise, `2` when the
     command line was wrong.
+- `sentinel resume` takes the id of a run that ended because it reached its budget per
+  task. It reads the run's task from `SENTINEL_URL` and starts a new run of it that
+  begins with the work the paused run kept, so nothing done so far is repeated. Without
+  `--budget` the new run gets the organization's limit; a limit above it is lowered to
+  it, and only the owner can resume above it, in the panel. A run is resumed once. The
+  server names the run it continues in its answer; a server that does not, and so
+  would do the task again from the start, has that new run stopped at once. It waits
+  and prints like `sentinel run`, with the same `--json`, `--no-wait`, `--timeout` and
+  `--base`.
+  - Exit status: `0` when the resumed run passed QA and opened a pull request, `1`
+    otherwise, `2` when the command line was wrong.
 - `sentinel stop --yes` stops every run of the organization of your API key. Without
   `--yes` it explains what it would do and sends nothing. A key can stop runs but not
   allow them again: only the owner can, in the panel.
@@ -187,7 +199,7 @@
 | Command | What it will do | Phase |
 | --- | --- | --- |
 | `sentinel login` | Sign in with GitHub, reusing the session of `gh`. | 1 |
-| `sentinel resume <run>` | Continue a paused run with a larger limit or another model. | 1 |
+| `sentinel resume --model` | Continue a paused run on another model. | 1 |
 | `sentinel update` for the runtime | Update the Sentinel that `sentinel up` runs, not only this command. | 1 |
 | `sentinel` | Start an interactive session, with plan, edit and auto modes. | 2 |
 | `sentinel --from-claude-code` | Continue in Sentinel a session you started in Claude Code. | 2 |
