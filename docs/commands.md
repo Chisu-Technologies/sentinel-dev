@@ -10,10 +10,13 @@
 | `sentinel down` | Stop Sentinel on this machine. Its data stays. |
 | `sentinel doctor` | Check that git, the GitHub CLI and ssh are installed on this machine, and that `gh` is signed in to github.com. |
 | `sentinel doctor <destination>` | Check a server before installing on it: operating system, architecture, privileges, systemd, memory and Docker. It only reads: it installs and configures nothing on the server. |
+| `sentinel pull <run id>` | Fetch the pull request of a run into the local branch `sentinel/<run id>` and switch to it. |
 | `sentinel run "<task>"` | Send a task and a patch of this working tree to a Sentinel server, wait, and print the pull request. With `--dry-run` it shows what would be sent: the GitHub repository, the commit GitHub already has, and the files in the patch. It then sends nothing. |
 | `sentinel runs` | List the latest runs of a Sentinel server: status, repository, pull request, cost, start and title. |
 | `sentinel setup <destination>` | Run Sentinel on your server, over ssh: `sentinel up` there, with the GitHub CLI session of this machine. |
+| `sentinel stop --yes` | Stop every run of a Sentinel server and refuse new ones until the owner allows runs again in its panel. |
 | `sentinel up --email <address>` | Run Sentinel on this machine, with Docker, and print a link to sign in to its panel. |
+| `sentinel update` | Replace this command with the latest release, after the same checks as the installer. `--check` only says whether there is one. |
 | `sentinel verify <pull request>` | Ask a Sentinel server to verify an existing pull request, wait, and print the verdict. |
 | `sentinel version` | Print the version. |
 | `sentinel watch <run id>` | Follow a run of a Sentinel server until it ends, printing its status changes and its log. |
@@ -148,6 +151,28 @@
     accepted the stop, or when the run had already ended; `1` for a run the server
     does not know, a refusal, a missing variable or an error from the server; `2`
     when the command line was wrong.
+- `sentinel pull` takes the id of one run. It reads the run from `SENTINEL_URL` and
+  fetches its pull request with `git fetch` from the repository's own remote. It
+  refuses when the working tree has uncommitted changes to tracked files or when the
+  pull request is in another repository. A branch that already exists only moves
+  forward: a local commit the pull request does not have stops it before anything
+  changes. It never merges, rebases, stashes or discards.
+  - Exit status: `0` when the branch was created or moved, `1` otherwise, `2` when the
+    command line was wrong.
+- `sentinel stop --yes` stops every run of the organization of your API key. Without
+  `--yes` it explains what it would do and sends nothing. A key can stop runs but not
+  allow them again: only the owner can, in the panel.
+  - Exit status: `0` when the server stopped the runs or accepted the stop, `1` for a
+    refusal, a missing variable or an error from the server, `2` when the command line
+    was wrong.
+- `sentinel update` reads the latest release of this repository on GitHub. The archive
+  must match `SHA256SUMS`, and when `cosign` is installed, `SHA256SUMS` must carry the
+  signature of the release workflow; `SENTINEL_REQUIRE_SIGNATURE=1` stops the update
+  when `cosign` is missing. The new binary is written beside the old one and renamed
+  into place, so an interrupted update leaves the old one whole. A development build is
+  not updated: install a release with the installer.
+  - Exit status: `0` when it updated, when this is the latest release, or with
+    `--check`; `1` for a failed check or download, `2` when the command line was wrong.
   - Exit status of `sentinel runs`: `0` on success, `1` for a missing variable or an
     error from the server, `2` when the command line was wrong.
   - Exit status of `sentinel watch`: `0` when the run ended as `completed`; `1` for
@@ -162,9 +187,7 @@
 | Command | What it will do | Phase |
 | --- | --- | --- |
 | `sentinel login` | Sign in with GitHub, reusing the session of `gh`. | 1 |
-| `sentinel pull [run]` | Fetch the branch of the pull request. | 1 |
 | `sentinel resume <run>` | Continue a paused run with a larger limit or another model. | 1 |
-| `sentinel stop` | Halt every run on the server until you allow them again. | 1 |
-| `sentinel update` | Update the client and the runtime. | 1 |
+| `sentinel update` for the runtime | Update the Sentinel that `sentinel up` runs, not only this command. | 1 |
 | `sentinel` | Start an interactive session, with plan, edit and auto modes. | 2 |
 | `sentinel --from-claude-code` | Continue in Sentinel a session you started in Claude Code. | 2 |

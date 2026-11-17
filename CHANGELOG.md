@@ -7,6 +7,17 @@ Notable changes are listed here, following
 
 ## [Unreleased]
 
+### Added
+
+- `sentinel pull <run id>` fetches the pull request of a run into the local branch
+  `sentinel/<run id>` and switches to it. It refuses uncommitted changes, and an
+  existing branch only moves forward.
+- `sentinel stop --yes` stops every run of the server and refuses new ones until the
+  owner allows them again in the panel. It needs a server that accepts it from an API
+  key.
+- `sentinel update` replaces the command with the latest release after the same checks
+  as the installer; `--check` only says whether there is one.
+
 ### Fixed
 
 - `sentinel run` no longer leaves out of the patch an edit of the same size made in

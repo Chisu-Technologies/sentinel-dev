@@ -410,6 +410,34 @@ func (c *Client) Stop(ctx context.Context, id string) (Run, error) {
 	return run, err
 }
 
+// Halt is the answer to stopping every run of the organization.
+type Halt struct {
+	// Stopped is how many runs the server stopped. A server that hands the stop
+	// to the machine of the runs answers 202 without a count.
+	Stopped int `json:"stopped"`
+	// Queued is true when the server answered 202: the stop is on its way to
+	// the machine of the runs, which applies it.
+	Queued bool `json:"-"`
+}
+
+// StopAll stops every run of the organization and refuses new ones until the
+// owner allows them again, which only the panel can do.
+func (c *Client) StopAll(ctx context.Context) (Halt, error) {
+	status, data, tooLarge, err := c.fetch(ctx, http.MethodPost, "/api/governance/runs-halt/stop", nil, "application/json")
+	if err != nil {
+		return Halt{}, err
+	}
+	if status != http.StatusOK && status != http.StatusAccepted {
+		return Halt{}, c.apiError(status, data, tooLarge)
+	}
+	var halt Halt
+	if err := decode(data, tooLarge, &halt); err != nil {
+		return Halt{}, err
+	}
+	halt.Queued = status == http.StatusAccepted
+	return halt, nil
+}
+
 // fetch sends one request and reads at most maxBody+1 bytes of the answer, so
 // every endpoint shares the same key handling and the same bound.
 func (c *Client) fetch(ctx context.Context, method, path string, body any, accept string) (status int, data []byte, tooLarge bool, err error) {
