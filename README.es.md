@@ -130,7 +130,9 @@ request (`verify`), el id de un run (`cancel`, `watch`), o la tarea, el nombre d
 repositorio, el commit que GitHub ya tiene y un parche de tu árbol de trabajo (`run`);
 leen el estado de tus runs, y `watch` también sus últimas líneas de log. Solo
 `sentinel run` lee tu árbol de trabajo y lo envía, como el parche que lista
-`sentinel run --dry-run`.
+`sentinel run --dry-run`. `sentinel login` no envía ningún token de GitHub: apruebas
+su código en el panel, y guarda la clave de API que recibe en un fichero que solo tú
+puedes leer.
 
 ## Requisitos (previstos)
 
