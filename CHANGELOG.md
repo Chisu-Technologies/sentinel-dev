@@ -7,6 +7,8 @@ Notable changes are listed here, following
 
 ## [Unreleased]
 
+## [0.3.4] - 2026-11-17
+
 ### Added
 
 - `sentinel login --url <address>` signs in to a Sentinel server: an owner or admin
