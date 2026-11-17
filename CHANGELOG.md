@@ -20,6 +20,13 @@ Notable changes are listed here, following
 - `sentinel update` replaces the command with the latest release after the same checks
   as the installer; `--check` only says whether there is one.
 
+### Changed
+
+- The server that `sentinel up` runs accepts `sentinel login`, `sentinel resume` and
+  `sentinel stop`, and its QA knows which part of a change is your local work. A run
+  that paused at its budget before writing anything can be resumed too: the task
+  starts again under the new budget.
+
 ### Fixed
 
 - `sentinel run` no longer leaves out of the patch an edit of the same size made in
