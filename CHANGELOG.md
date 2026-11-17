@@ -7,6 +7,11 @@ Notable changes are listed here, following
 
 ## [Unreleased]
 
+### Fixed
+
+- `sentinel run` no longer leaves out of the patch an edit of the same size made in
+  the same instant as the last git command, which it could on a fast machine.
+
 ## [0.3.3] - 2026-11-17
 
 ### Added
