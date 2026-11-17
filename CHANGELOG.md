@@ -7,6 +7,8 @@ Notable changes are listed here, following
 
 ## [Unreleased]
 
+## [0.3.3] - 2026-11-17
+
 ### Added
 
 - `sentinel run "<task>"` sends the task and a patch of your working tree to a Sentinel
