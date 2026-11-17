@@ -121,6 +121,11 @@
     in `SENTINEL_HOME` or `--dir`. On Windows, a folder under `AppData` does not work:
     Docker Desktop does not see the files there.
   - An installation of the open edition has no limits on runs, members or repositories.
+  - If the machine restarts or Docker stops while a run is working, the task it was on
+    ends blocked and you run it again. To have Sentinel start that task again by
+    itself, add `SENTINEL_STORY_RESTART_RETRIES=1` (at most `3`) to the installation's
+    `.env` and run `sentinel up`. Each new attempt starts the task from the beginning
+    and pays for it again.
   - The images are built for `linux/amd64`. On Apple Silicon, Docker runs them under
     emulation; that has not been measured yet.
 - `sentinel setup <destination>` runs the open edition on a server instead of this
