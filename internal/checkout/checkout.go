@@ -17,14 +17,15 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/Chisu-Technologies/sentinel-dev/internal/execx"
 )
 
-// MaxPatchBytes is the largest patch a task may carry. A patch is for the work
-// in progress of one task; a tree that differs from GitHub by more than this
-// should be pushed first.
-const MaxPatchBytes = 3 << 20
+// MaxPatchBytes is the largest patch a task may carry, the same limit the server
+// keeps. A patch is for the work in progress of one task; a tree that differs
+// from GitHub by more than this should be pushed first.
+const MaxPatchBytes = 128 << 10
 
 // Package is what a server needs to rebuild this working tree.
 type Package struct {
@@ -42,6 +43,11 @@ type Package struct {
 // ErrPatchTooLarge means the working tree differs from GitHub by more than
 // MaxPatchBytes.
 var ErrPatchTooLarge = errors.New("the changes are too large to send as a patch")
+
+// ErrPatchNotText means a changed file holds text that is not UTF-8. The patch
+// travels as JSON text, which would replace those bytes, and the server could
+// not apply what arrives.
+var ErrPatchNotText = errors.New("the changes cannot be sent as a patch")
 
 // repo runs git commands in one directory.
 type repo struct {
@@ -211,10 +217,13 @@ func (r repo) patchFrom(base string) ([]byte, []string, error) {
 		"--src-prefix=a/", "--dst-prefix=b/",
 		base, "--")
 	if errors.Is(err, execx.ErrOutputTooLarge) {
-		return nil, nil, fmt.Errorf("%w: more than %d MiB differ from the commit GitHub has; push your branch first", ErrPatchTooLarge, MaxPatchBytes>>20)
+		return nil, nil, fmt.Errorf("%w: more than %s differ from the commit GitHub has; push your branch first", ErrPatchTooLarge, amount(MaxPatchBytes))
 	}
 	if err != nil {
 		return nil, nil, err
+	}
+	if !utf8.ValidString(patch) {
+		return nil, nil, fmt.Errorf("%w: a changed file has text that is not UTF-8; commit and push it first", ErrPatchNotText)
 	}
 	names, err := r.output(0, "diff", "--cached", "--name-only", "-z", "-M", base, "--")
 	if err != nil {
@@ -270,10 +279,18 @@ func (r repo) refuseLargeNewFiles() error {
 	sort.Slice(files, func(i, j int) bool { return files[i].size > files[j].size })
 	var largest []string
 	for _, f := range files[:min(3, len(files))] {
-		largest = append(largest, fmt.Sprintf("%s (%.1f MiB)", f.path, float64(f.size)/(1<<20)))
+		largest = append(largest, fmt.Sprintf("%s (%s)", f.path, amount(f.size)))
 	}
-	return fmt.Errorf("%w: new files add up to %.1f MiB, over the %d MiB limit; the largest are %s. Add them to .gitignore, or commit and push them",
-		ErrPatchTooLarge, float64(total)/(1<<20), MaxPatchBytes>>20, strings.Join(largest, ", "))
+	return fmt.Errorf("%w: new files add up to %s, over the %s limit; the largest are %s. Add them to .gitignore, or commit and push them",
+		ErrPatchTooLarge, amount(total), amount(MaxPatchBytes), strings.Join(largest, ", "))
+}
+
+// amount names a size the way the limits are written: whole KiB below 1 MiB.
+func amount(bytes int64) string {
+	if bytes < 1<<20 {
+		return fmt.Sprintf("%d KiB", (bytes+1<<10-1)>>10)
+	}
+	return fmt.Sprintf("%.1f MiB", float64(bytes)/(1<<20))
 }
 
 func splitNul(s string) []string {

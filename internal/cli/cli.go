@@ -16,7 +16,6 @@ import (
 	"time"
 
 	"github.com/Chisu-Technologies/sentinel-dev/internal/buildinfo"
-	"github.com/Chisu-Technologies/sentinel-dev/internal/checkout"
 	"github.com/Chisu-Technologies/sentinel-dev/internal/doctor"
 	"github.com/Chisu-Technologies/sentinel-dev/internal/execx"
 )
@@ -74,7 +73,7 @@ Commands:
   cancel <run id>           Stop a run of a Sentinel server
   doctor [destination]      Check this machine, or a server before installing on it
   down                      Stop Sentinel on this machine; its data stays
-  run --dry-run "<task>"    Show what a task would send from this repository
+  run "<task>"              Send a task and this working tree to a Sentinel server
   runs                      List the runs of a Sentinel server
   setup <destination>       Run Sentinel on your server, over ssh
   up                        Run Sentinel on this machine, with Docker
@@ -194,58 +193,6 @@ func runDoctor(ctx context.Context, args []string, env Env) int {
 	if report.Failed() {
 		return ExitFailed
 	}
-	return ExitOK
-}
-
-// dryRun is what `sentinel run --dry-run` reports. The patch itself is not
-// printed: it is the content of the working tree.
-type dryRun struct {
-	Task string `json:"task"`
-	checkout.Package
-	PatchBytes int `json:"patch_bytes"`
-}
-
-func runRun(ctx context.Context, args []string, env Env) int {
-	fs := flag.NewFlagSet("run", flag.ContinueOnError)
-	dry := fs.Bool("dry-run", false, "show what would be sent, and send nothing")
-	asJSON := fs.Bool("json", false, "print the result as JSON")
-	if code := parse(fs, args, env, `run --dry-run [--json] "<task>"`); code >= 0 {
-		return code
-	}
-	task := strings.TrimSpace(fs.Arg(0))
-	if fs.NArg() != 1 || task == "" {
-		fmt.Fprintln(env.Stderr, `sentinel run takes the task as one argument, for example: sentinel run --dry-run "fix the flaky login test"`)
-		return ExitUsage
-	}
-	if !*dry {
-		// Said plainly instead of pretending: there is no released runtime to
-		// send a task to yet.
-		fmt.Fprintln(env.Stderr, "sentinel run cannot send a task yet: the runtime it sends to is not released.")
-		fmt.Fprintln(env.Stderr, "Add --dry-run to see what would be sent from this repository.")
-		return ExitFailed
-	}
-
-	pkg, err := checkout.Build(ctx, env.Runner, env.Dir)
-	if err != nil {
-		fmt.Fprintf(env.Stderr, "sentinel: %v\n", err)
-		return ExitFailed
-	}
-	result := dryRun{Task: task, Package: pkg, PatchBytes: len(pkg.Patch)}
-	if *asJSON {
-		return writeJSON(env, result)
-	}
-	fmt.Fprintf(env.Stdout, "Task         %s\n", task)
-	fmt.Fprintf(env.Stdout, "Repository   %s\n", pkg.Repository)
-	fmt.Fprintf(env.Stdout, "Base commit  %s\n", pkg.BaseCommit)
-	if len(pkg.Files) == 0 {
-		fmt.Fprintln(env.Stdout, "Patch        none: GitHub already has everything in this working tree")
-	} else {
-		fmt.Fprintf(env.Stdout, "Patch        %s, %s\n", count(len(pkg.Files), "file"), size(len(pkg.Patch)))
-		for _, file := range pkg.Files {
-			fmt.Fprintf(env.Stdout, "  %s\n", file)
-		}
-	}
-	fmt.Fprintln(env.Stdout, "\nNothing was sent: this was a dry run.")
 	return ExitOK
 }
 

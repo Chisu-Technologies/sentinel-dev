@@ -3,6 +3,8 @@ package cli
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"io"
@@ -35,6 +37,9 @@ type fakeServer struct {
 	startStatus int
 	startBody   string
 	polls       int
+	// echoPatch answers a start request that carries a patch with its digest,
+	// as a server that takes local work does.
+	echoPatch bool
 }
 
 func newFakeServer(t *testing.T, stories string, statuses ...string) *fakeServer {
@@ -54,8 +59,18 @@ func newFakeServer(t *testing.T, stories string, statuses ...string) *fakeServer
 				io.WriteString(w, f.startBody)
 				return
 			}
+			digest := ""
+			var start struct {
+				Patch string `json:"patch"`
+			}
+			if json.Unmarshal(body, &start) == nil && start.Patch != "" && f.echoPatch {
+				sum := sha256.Sum256([]byte(start.Patch))
+				digest = hex.EncodeToString(sum[:])
+			}
 			w.WriteHeader(http.StatusCreated)
-			io.WriteString(w, `{"id":"run-7","status":"`+f.statuses[0]+`"}`)
+			io.WriteString(w, `{"id":"run-7","status":"`+f.statuses[0]+`","local_patch_sha256":"`+digest+`"}`)
+		case r.Method == "POST" && r.URL.Path == "/api/runs/run-7/stop":
+			io.WriteString(w, `{"id":"run-7","status":"stopped"}`)
 		case r.Method == "GET" && r.URL.Path == "/api/runs/run-7":
 			i := min(f.polls+1, len(f.statuses)-1)
 			f.polls++

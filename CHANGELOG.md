@@ -7,6 +7,23 @@ Notable changes are listed here, following
 
 ## [Unreleased]
 
+### Added
+
+- `sentinel run "<task>"` sends the task and a patch of your working tree to a Sentinel
+  server, waits, and prints the pull request. It stops the run when the server did not
+  take the patch, as a server without support for local work would do the task
+  without it. `--dry-run` still sends nothing.
+
+### Changed
+
+- The patch of a task is limited to 128 KiB, the limit of the server, and a changed
+  file whose text is not UTF-8 is refused before anything is sent.
+
+### Fixed
+
+- `sentinel verify` accepts a server that queues the run, which answers `202 Accepted`
+  instead of `201 Created`.
+
 ## [0.3.2] - 2026-11-15
 
 ### Added

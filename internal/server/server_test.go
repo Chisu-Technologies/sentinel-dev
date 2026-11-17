@@ -2,6 +2,8 @@ package server
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"io"
@@ -374,5 +376,128 @@ func TestVerdictFallsBackFromEvidenceToStateToBlockedDetail(t *testing.T) {
 		if got := tc.story.Verdict(); got != tc.want {
 			t.Errorf("%s: Verdict() = %q, want %q", name, got, tc.want)
 		}
+	}
+}
+
+func TestStartAcceptsARunTheServerQueued(t *testing.T) {
+	// A server that hands the run to the machine that runs it answers 202.
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusAccepted)
+		io.WriteString(w, `{"id":"run_1","status":"queued"}`)
+	}))
+	defer srv.Close()
+
+	run, err := newClient(t, srv.URL).StartVerify(context.Background(), StartRequest{Repository: "a/b", PullNumber: 1})
+	if err != nil || run.ID != "run_1" {
+		t.Fatalf("run = %+v, err = %v", run, err)
+	}
+}
+
+const taskPatch = "diff --git a/app.txt b/app.txt\n--- a/app.txt\n+++ b/app.txt\n@@ -1 +1 @@\n-one\n+two <&>\n"
+
+// taskServer answers a start request as a server that took the patch, or one
+// that ignored it, and records every request.
+func taskServer(t *testing.T, echo bool) (*httptest.Server, *[]string, *[]map[string]any) {
+	t.Helper()
+	var requests []string
+	var bodies []map[string]any
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests = append(requests, r.Method+" "+r.URL.Path)
+		var body map[string]any
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		bodies = append(bodies, body)
+		if r.URL.Path == "/api/runs/run_1/stop" {
+			io.WriteString(w, `{"id":"run_1","status":"stopped"}`)
+			return
+		}
+		answer := map[string]any{"id": "run_1", "status": "queued", "local_patch_sha256": nil}
+		if patch, ok := body["patch"].(string); ok && echo {
+			sum := sha256.Sum256([]byte(patch))
+			answer["local_patch_sha256"] = hex.EncodeToString(sum[:])
+		}
+		w.WriteHeader(http.StatusCreated)
+		json.NewEncoder(w).Encode(answer)
+	}))
+	t.Cleanup(srv.Close)
+	return srv, &requests, &bodies
+}
+
+func TestStartTaskSendsTheTaskTheCommitAndThePatch(t *testing.T) {
+	srv, requests, bodies := taskServer(t, true)
+	commit := strings.Repeat("a", 40)
+
+	run, err := newClient(t, srv.URL).StartTask(context.Background(), TaskRequest{
+		Repository: "acme/widgets", BaseRef: "release", BaseCommit: commit, Patch: []byte(taskPatch),
+		Task: "fix the flaky login test\n\nIt fails one run in ten on CI.",
+	})
+
+	if err != nil || run.ID != "run_1" {
+		t.Fatalf("run = %+v, err = %v", run, err)
+	}
+	if strings.Join(*requests, ",") != "POST /api/runs" {
+		t.Errorf("requests = %v", *requests)
+	}
+	body := (*bodies)[0]
+	if body["repo"] != "acme/widgets" || body["mode"] != "review" || body["base_ref"] != "release" ||
+		body["base_commit"] != commit || body["patch"] != taskPatch {
+		t.Errorf("body = %v", body)
+	}
+	finding := body["findings"].([]any)[0].(map[string]any)
+	if finding["title"] != "fix the flaky login test" ||
+		finding["description"] != "fix the flaky login test\n\nIt fails one run in ten on CI." ||
+		finding["severity"] != "medium" {
+		t.Errorf("finding = %v", finding)
+	}
+}
+
+func TestStartTaskWithoutChangesSendsNoPatchAndNeedsNoDigest(t *testing.T) {
+	srv, _, bodies := taskServer(t, false)
+
+	run, err := newClient(t, srv.URL).StartTask(context.Background(), TaskRequest{
+		Repository: "a/b", BaseCommit: strings.Repeat("b", 40), Task: "t",
+	})
+
+	if err != nil || run.ID != "run_1" {
+		t.Fatalf("run = %+v, err = %v", run, err)
+	}
+	if _, sent := (*bodies)[0]["patch"]; sent {
+		t.Errorf("an empty patch was sent: %v", (*bodies)[0])
+	}
+	if _, sent := (*bodies)[0]["base_ref"]; sent {
+		t.Errorf("an empty base was sent: %v", (*bodies)[0])
+	}
+}
+
+func TestStartTaskStopsARunWhoseServerIgnoredThePatch(t *testing.T) {
+	// A server older than local work accepts the request and drops the patch;
+	// the task must not go on without the work it is about.
+	srv, requests, _ := taskServer(t, false)
+
+	_, err := newClient(t, srv.URL).StartTask(context.Background(), TaskRequest{
+		Repository: "a/b", BaseCommit: strings.Repeat("c", 40), Task: "t", Patch: []byte(taskPatch),
+	})
+
+	if !errors.Is(err, ErrNoLocalWork) || !strings.Contains(err.Error(), "run run_1 was stopped") {
+		t.Fatalf("err = %v", err)
+	}
+	if strings.Join(*requests, ",") != "POST /api/runs,POST /api/runs/run_1/stop" {
+		t.Errorf("requests = %v", *requests)
+	}
+}
+
+func TestStartTaskCutsALongFirstLineForTheTitle(t *testing.T) {
+	srv, _, bodies := taskServer(t, false)
+	task := strings.Repeat("é", MaxTaskTitle+10)
+
+	if _, err := newClient(t, srv.URL).StartTask(context.Background(), TaskRequest{Repository: "a/b", BaseCommit: strings.Repeat("d", 40), Task: task}); err != nil {
+		t.Fatal(err)
+	}
+	finding := (*bodies)[0]["findings"].([]any)[0].(map[string]any)
+	title := finding["title"].(string)
+	if n := len([]rune(title)); n != MaxTaskTitle || !strings.HasSuffix(title, "…") {
+		t.Errorf("title has %d runes: %q", n, title)
+	}
+	if finding["description"] != task {
+		t.Error("the description is not the whole task")
 	}
 }

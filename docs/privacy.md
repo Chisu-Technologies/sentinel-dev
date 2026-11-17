@@ -5,13 +5,16 @@
 
 ## Today
 
-`sentinel cancel`, `sentinel verify`, `sentinel runs` and `sentinel watch` are the
-commands that contact a Sentinel server, the one in `SENTINEL_URL`. `sentinel verify`
+`sentinel cancel`, `sentinel run`, `sentinel verify`, `sentinel runs` and
+`sentinel watch` are the commands that contact a Sentinel server, the one in
+`SENTINEL_URL`. `sentinel run` sends the task, the repository name, the commit GitHub
+already has, a patch of your working tree and your API key, and reads back the state of
+the run; the patch holds the files that `sentinel run --dry-run` lists. `sentinel verify`
 sends the repository name, the pull request number and your API key, and reads back
 the state of the run. `sentinel runs` and `sentinel watch` send your API key and a run
 id, and read back the state and the recent log lines of your runs. `sentinel cancel`
-sends your API key and a run id, and reads back the state of that run. None of them
-reads or sends your working tree.
+sends your API key and a run id, and reads back the state of that run. Only
+`sentinel run` reads or sends your working tree.
 `sentinel up` downloads the images of Sentinel from the GitHub Container Registry
 (`ghcr.io`) and runs them on this machine; the secrets it creates stay in its folder on
 this machine. `sentinel down` connects to nothing.

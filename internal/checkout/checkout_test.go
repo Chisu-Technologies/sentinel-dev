@@ -320,6 +320,19 @@ func noise(n int) []byte {
 	return out.Bytes()[:n]
 }
 
+func TestTextThatIsNotUTF8IsRefusedBeforeItIsSent(t *testing.T) {
+	// The patch travels as JSON text: Latin-1 bytes would arrive replaced, and
+	// the server could not apply them.
+	f := checkouttest.New(t)
+	checkouttest.Write(t, f.Work, "src/app.txt", []byte("caf\xe9\n"))
+
+	_, err := Build(context.Background(), execx.OS{}, f.Work)
+
+	if !errors.Is(err, ErrPatchNotText) || !strings.Contains(err.Error(), "not UTF-8") {
+		t.Errorf("err = %v, want ErrPatchNotText", err)
+	}
+}
+
 func TestChangesTooLargeForAPatchAreRefused(t *testing.T) {
 	t.Run("a large new file is named before git copies it", func(t *testing.T) {
 		f := checkouttest.New(t)
@@ -330,7 +343,7 @@ func TestChangesTooLargeForAPatchAreRefused(t *testing.T) {
 		if !errors.Is(err, ErrPatchTooLarge) {
 			t.Fatalf("err = %v, want ErrPatchTooLarge", err)
 		}
-		if !strings.Contains(err.Error(), "dump/data.sql (3.0 MiB)") {
+		if !strings.Contains(err.Error(), "dump/data.sql (129 KiB)") {
 			t.Errorf("err = %v, want the largest file named with its size", err)
 		}
 		if after := checkouttest.Git(t, f.Work, nil, "count-objects", "-v"); after != before {
