@@ -245,11 +245,22 @@ func (r repo) copyRealIndex(dst string) bool {
 	if !filepath.IsAbs(real) {
 		real = filepath.Join(r.dir, real)
 	}
+	info, err := os.Stat(real)
+	if err != nil {
+		return false
+	}
 	data, err := os.ReadFile(real)
 	if err != nil {
 		return false
 	}
-	return os.WriteFile(dst, data, 0o600) == nil
+	if os.WriteFile(dst, data, 0o600) != nil {
+		return false
+	}
+	// git reads a file whose entry is not older than the index file even when
+	// its size and time look unchanged: an edit made in the same clock tick.
+	// A copy stamped "now" makes every entry older, and that edit would be
+	// left out of the patch, so the copy keeps the time of the real index.
+	return os.Chtimes(dst, info.ModTime(), info.ModTime()) == nil
 }
 
 // refuseLargeNewFiles stops when the files git does not track yet would not

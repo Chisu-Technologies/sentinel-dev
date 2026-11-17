@@ -156,6 +156,36 @@ func TestThePatchRebuildsTheWorkingTree(t *testing.T) {
 	}
 }
 
+// An edit of the same size made in the same clock tick as the index entry
+// leaves the file's size and time as git recorded them. git still reads such a
+// "racily clean" file because the entry is not older than the index file; a
+// copy of the index stamped "now" made every entry older, so the edit was left
+// out of the patch. It failed on a fast CI machine on Windows.
+func TestASameSizeEditInTheTickOfTheIndexIsInThePatch(t *testing.T) {
+	f := checkouttest.New(t)
+	// ctime cannot be set back on Linux and would reveal the edit by itself.
+	checkouttest.Git(t, f.Work, nil, "config", "core.trustctime", "false")
+	file := filepath.Join(f.Work, "src", "app.txt")
+	info, err := os.Stat(file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	recorded := info.ModTime()
+	checkouttest.Write(t, f.Work, "src/app.txt", []byte("one\nTWO\nthree\n"))
+	index := filepath.Join(f.Work, ".git", "index")
+	for _, path := range []string{file, index} {
+		if err := os.Chtimes(path, recorded, recorded); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	pkg := build(t, f.Work)
+
+	if !strings.Contains(string(pkg.Patch), "+TWO") {
+		t.Errorf("the edit is not in the patch; files %v", pkg.Files)
+	}
+}
+
 func TestBuildWorksFromASubdirectory(t *testing.T) {
 	f := checkouttest.New(t)
 	checkouttest.Write(t, f.Work, "README.md", []byte("# widgets, edited from below\n"))
