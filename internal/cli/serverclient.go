@@ -10,19 +10,31 @@ import (
 	"github.com/Chisu-Technologies/sentinel-dev/internal/server"
 )
 
-// newServerClient reads the two environment variables every command that
-// talks to a server needs, and builds the client. It returns the exit status
-// to stop with, or -1 to continue. The key comes only from the environment: a
-// flag would end up in the shell history.
+// newServerClient builds the client every command that talks to a server
+// needs, from SENTINEL_URL and SENTINEL_API_KEY, or, when neither is set, from
+// the sign-in `sentinel login` saved. It returns the exit status to stop with,
+// or -1 to continue. The key never comes from a flag: it would end up in the
+// shell history.
 func newServerClient(env Env, command string) (*server.Client, int) {
 	rawURL := env.getenv("SENTINEL_URL")
+	key := env.getenv("SENTINEL_API_KEY")
+	source := "SENTINEL_URL or SENTINEL_API_KEY"
+	if rawURL == "" && key == "" {
+		saved, ok, err := loadCredentials(env)
+		if err != nil {
+			fmt.Fprintf(env.Stderr, "sentinel %s: %v\n", command, err)
+			return nil, ExitFailed
+		}
+		if ok {
+			rawURL, key, source = saved.URL, saved.APIKey, "the saved sign-in"
+		}
+	}
 	if rawURL == "" {
-		fmt.Fprintf(env.Stderr, "sentinel %s needs SENTINEL_URL, the address of your Sentinel server.\n", command)
+		fmt.Fprintf(env.Stderr, "sentinel %s needs SENTINEL_URL, the address of your Sentinel server, or a sign-in: sentinel login --url <address>\n", command)
 		return nil, ExitFailed
 	}
-	key := env.getenv("SENTINEL_API_KEY")
 	if key == "" {
-		fmt.Fprintf(env.Stderr, "sentinel %s needs SENTINEL_API_KEY, an API key of your Sentinel server. It is read only from the environment.\n", command)
+		fmt.Fprintf(env.Stderr, "sentinel %s needs SENTINEL_API_KEY, an API key of your Sentinel server. It is read only from the environment, or from the sign-in of sentinel login.\n", command)
 		return nil, ExitFailed
 	}
 	httpClient := env.HTTP
@@ -31,7 +43,7 @@ func newServerClient(env Env, command string) (*server.Client, int) {
 	}
 	client, err := server.New(rawURL, key, httpClient, "sentinel/"+env.Build.Version)
 	if err != nil {
-		fmt.Fprintf(env.Stderr, "sentinel %s: SENTINEL_URL or SENTINEL_API_KEY: %v\n", command, err)
+		fmt.Fprintf(env.Stderr, "sentinel %s: %s: %v\n", command, source, err)
 		return nil, ExitFailed
 	}
 	return client, -1
