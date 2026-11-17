@@ -73,10 +73,14 @@ Commands:
   cancel <run id>           Stop a run of a Sentinel server
   doctor [destination]      Check this machine, or a server before installing on it
   down                      Stop Sentinel on this machine; its data stays
+  pull <run id>             Fetch the pull request of a run into a local branch
+  resume <run id>           Continue a run that paused at its budget
   run "<task>"              Send a task and this working tree to a Sentinel server
   runs                      List the runs of a Sentinel server
   setup <destination>       Run Sentinel on your server, over ssh
+  stop --yes                Stop every run of a Sentinel server
   up                        Run Sentinel on this machine, with Docker
+  update [--check]          Replace this command with the latest release
   verify <pull request>     Ask a Sentinel server to verify a pull request
   watch <run id>            Follow a run until it ends
   version                   Print the version
@@ -105,12 +109,20 @@ func Run(ctx context.Context, args []string, env Env) int {
 		return runDown(ctx, rest, env)
 	case "up":
 		return runUp(ctx, rest, env)
+	case "update":
+		return runUpdate(ctx, rest, env)
+	case "pull":
+		return runPull(ctx, rest, env)
+	case "resume":
+		return runResume(ctx, rest, env)
 	case "run":
 		return runRun(ctx, rest, env)
 	case "runs":
 		return runRuns(ctx, rest, env)
 	case "setup":
 		return runSetup(ctx, rest, env)
+	case "stop":
+		return runStop(ctx, rest, env)
 	case "verify":
 		return runVerify(ctx, rest, env)
 	case "watch":

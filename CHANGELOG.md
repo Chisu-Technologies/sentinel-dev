@@ -7,6 +7,19 @@ Notable changes are listed here, following
 
 ## [Unreleased]
 
+### Added
+
+- `sentinel pull <run id>` fetches the pull request of a run into the local branch
+  `sentinel/<run id>` and switches to it. It refuses uncommitted changes, and an
+  existing branch only moves forward.
+- `sentinel resume <run id>` continues a run that paused at its budget, from the work
+  it kept if any, with `--budget` for the new limit. It needs a server that resumes runs.
+- `sentinel stop --yes` stops every run of the server and refuses new ones until the
+  owner allows them again in the panel. It needs a server that accepts it from an API
+  key.
+- `sentinel update` replaces the command with the latest release after the same checks
+  as the installer; `--check` only says whether there is one.
+
 ### Changed
 
 - The server that `sentinel up` runs accepts `sentinel login`, `sentinel resume` and
