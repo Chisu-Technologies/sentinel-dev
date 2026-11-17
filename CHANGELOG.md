@@ -7,6 +7,11 @@ Notable changes are listed here, following
 
 ## [Unreleased]
 
+### Changed
+
+- The server that `sentinel up` runs accepts `sentinel login`, `sentinel resume` and
+  `sentinel stop`, and its QA knows which part of a change is your local work.
+
 ### Fixed
 
 - `sentinel run` no longer leaves out of the patch an edit of the same size made in
