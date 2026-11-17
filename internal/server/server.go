@@ -206,6 +206,12 @@ type Run struct {
 	// LocalPatchSHA256 comes only in the answer that creates a run sent with
 	// local work: the digest of the patch the server took.
 	LocalPatchSHA256 string `json:"local_patch_sha256"`
+	// ResumedFrom comes only in the answer that creates a resume: the paused run
+	// it continues.
+	ResumedFrom string `json:"resumed_from"`
+	// Findings are the tasks of the run, as the server keeps them. They are
+	// sent back unchanged to resume it.
+	Findings []json.RawMessage `json:"findings"`
 }
 
 // StartRequest asks for the verification of an existing pull request.
@@ -320,6 +326,55 @@ func (c *Client) StartTask(ctx context.Context, req TaskRequest) (Run, error) {
 	return run, nil
 }
 
+// ResumeRequest continues a run that paused at its budget.
+type ResumeRequest struct {
+	Paused Run
+	// BudgetUSD is the new limit per task; zero keeps the organization's.
+	BudgetUSD float64
+	// BaseRef is sent only when not empty.
+	BaseRef string
+}
+
+// ErrNoResume means the server started the task afresh instead of resuming it.
+var ErrNoResume = errors.New("this server does not resume runs yet; update it, or resume the task from its panel")
+
+// StartResume starts the run that continues req.Paused, from the work it kept
+// when it kept any.
+// The server names the run it continues in its answer; a server without resume
+// ignores the field and would do the task again from the start, so that run is
+// stopped at once.
+func (c *Client) StartResume(ctx context.Context, req ResumeRequest) (Run, error) {
+	if !ValidRunID(req.Paused.ID) {
+		return Run{}, errors.New("not a valid run id")
+	}
+	if len(req.Paused.Findings) != 1 {
+		return Run{}, fmt.Errorf("run %s carries %d tasks; only a run with one task can be resumed here", req.Paused.ID, len(req.Paused.Findings))
+	}
+	body := map[string]any{
+		"repo":          req.Paused.Repo,
+		"mode":          "review",
+		"findings":      req.Paused.Findings,
+		"resume_run_id": req.Paused.ID,
+	}
+	if req.BudgetUSD > 0 {
+		body["budget_usd_per_story"] = req.BudgetUSD
+	}
+	if req.BaseRef != "" {
+		body["base_ref"] = req.BaseRef
+	}
+	run, err := c.start(ctx, body)
+	if err != nil {
+		return Run{}, err
+	}
+	if run.ResumedFrom != req.Paused.ID {
+		if _, stopErr := c.Stop(ctx, run.ID); stopErr != nil {
+			return Run{}, fmt.Errorf("%w; stopping run %s failed too: %v", ErrNoResume, run.ID, stopErr)
+		}
+		return Run{}, fmt.Errorf("%w; run %s was stopped", ErrNoResume, run.ID)
+	}
+	return run, nil
+}
+
 // ErrNoLocalWork means the server did not take the patch of a task.
 var ErrNoLocalWork = errors.New("this server does not take local work yet; update it, or push your branch and run the task without changes")
 
@@ -414,6 +469,34 @@ func (c *Client) Stop(ctx context.Context, id string) (Run, error) {
 	var run Run
 	err = decode(data, tooLarge, &run)
 	return run, err
+}
+
+// Halt is the answer to stopping every run of the organization.
+type Halt struct {
+	// Stopped is how many runs the server stopped. A server that hands the stop
+	// to the machine of the runs answers 202 without a count.
+	Stopped int `json:"stopped"`
+	// Queued is true when the server answered 202: the stop is on its way to
+	// the machine of the runs, which applies it.
+	Queued bool `json:"-"`
+}
+
+// StopAll stops every run of the organization and refuses new ones until the
+// owner allows them again, which only the panel can do.
+func (c *Client) StopAll(ctx context.Context) (Halt, error) {
+	status, data, tooLarge, err := c.fetch(ctx, http.MethodPost, "/api/governance/runs-halt/stop", nil, "application/json")
+	if err != nil {
+		return Halt{}, err
+	}
+	if status != http.StatusOK && status != http.StatusAccepted {
+		return Halt{}, c.apiError(status, data, tooLarge)
+	}
+	var halt Halt
+	if err := decode(data, tooLarge, &halt); err != nil {
+		return Halt{}, err
+	}
+	halt.Queued = status == http.StatusAccepted
+	return halt, nil
 }
 
 // fetch sends one request and reads at most maxBody+1 bytes of the answer, so

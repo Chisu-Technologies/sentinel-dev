@@ -18,10 +18,10 @@ cambio, lo prueba. El resultado es un pull request para que lo revises; el agent
 puede hacer merge.
 
 > **Pre-alfa.** Hoy solo existen `sentinel up`, `sentinel down`, `sentinel cancel`,
-> `sentinel doctor`, `sentinel login`, `sentinel logout`, `sentinel run`,
-> `sentinel runs`, `sentinel setup`, `sentinel verify`, `sentinel version` y
-> `sentinel watch`. El resto de esta página es el diseño previsto; mira la [hoja de
-> ruta](docs/roadmap.md).
+> `sentinel doctor`, `sentinel pull`, `sentinel resume`, `sentinel run`,
+> `sentinel runs`, `sentinel setup`, `sentinel stop`, `sentinel update`,
+> `sentinel verify`, `sentinel version` y `sentinel watch`. El resto de esta página es
+> el diseño previsto; mira la [hoja de ruta](docs/roadmap.md).
 
 ## Cómo va a funcionar
 
@@ -123,16 +123,16 @@ modelo usaron y cómo terminaron. No recibirá prompts, código ni diffs. La lis
 no es definitiva; estará en la [página de privacidad](docs/privacy.md) antes de la
 primera versión, y lo que no esté en ella no se enviará.
 
-Hoy `sentinel cancel`, `sentinel run`, `sentinel verify`, `sentinel runs` y
-`sentinel watch` son los comandos que contactan con un servidor de Sentinel, el de
-`SENTINEL_URL`. Envían tu llave de API, y el nombre del repositorio y el número del pull
-request (`verify`), el id de un run (`cancel`, `watch`), o la tarea, el nombre del
-repositorio, el commit que GitHub ya tiene y un parche de tu árbol de trabajo (`run`);
-leen el estado de tus runs, y `watch` también sus últimas líneas de log. Solo
-`sentinel run` lee tu árbol de trabajo y lo envía, como el parche que lista
-`sentinel run --dry-run`. `sentinel login` no envía ningún token de GitHub: apruebas
-su código en el panel, y guarda la clave de API que recibe en un fichero que solo tú
-puedes leer.
+Hoy `sentinel cancel`, `sentinel pull`, `sentinel resume`, `sentinel run`,
+`sentinel stop`, `sentinel verify`, `sentinel runs` y `sentinel watch` son los
+comandos que contactan con un servidor de Sentinel, el de `SENTINEL_URL`. Envían tu
+llave de API, y el nombre del repositorio y el número del pull request (`verify`), el
+id de un run (`cancel`, `pull`, `resume`, `watch`), nada más (`stop`), o la tarea, el
+nombre del repositorio, el commit que GitHub ya tiene y un parche de tu árbol de
+trabajo (`run`); leen el estado de tus runs, y `watch` también sus últimas líneas de
+log. Solo `sentinel run` lee tu árbol de trabajo y lo envía, como el parche que lista
+`sentinel run --dry-run`. `sentinel update` contacta solo con GitHub, para la última
+versión del comando.
 
 ## Requisitos (previstos)
 

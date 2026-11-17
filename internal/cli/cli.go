@@ -79,10 +79,14 @@ Commands:
   down                      Stop Sentinel on this machine; its data stays
   login [--url <address>]   Sign in to a Sentinel server, approving it in its panel
   logout                    Forget the sign-in of sentinel login
+  pull <run id>             Fetch the pull request of a run into a local branch
+  resume <run id>           Continue a run that paused at its budget
   run "<task>"              Send a task and this working tree to a Sentinel server
   runs                      List the runs of a Sentinel server
   setup <destination>       Run Sentinel on your server, over ssh
+  stop --yes                Stop every run of a Sentinel server
   up                        Run Sentinel on this machine, with Docker
+  update [--check]          Replace this command with the latest release
   verify <pull request>     Ask a Sentinel server to verify a pull request
   watch <run id>            Follow a run until it ends
   version                   Print the version
@@ -115,12 +119,20 @@ func Run(ctx context.Context, args []string, env Env) int {
 		return runLogin(ctx, rest, env)
 	case "logout":
 		return runLogout(ctx, rest, env)
+	case "update":
+		return runUpdate(ctx, rest, env)
+	case "pull":
+		return runPull(ctx, rest, env)
+	case "resume":
+		return runResume(ctx, rest, env)
 	case "run":
 		return runRun(ctx, rest, env)
 	case "runs":
 		return runRuns(ctx, rest, env)
 	case "setup":
 		return runSetup(ctx, rest, env)
+	case "stop":
+		return runStop(ctx, rest, env)
 	case "verify":
 		return runVerify(ctx, rest, env)
 	case "watch":

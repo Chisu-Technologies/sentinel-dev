@@ -13,6 +13,23 @@ Notable changes are listed here, following
   approves the code it prints in the panel, and the command keeps an API key for you,
   readable by you only. `sentinel logout` forgets it. `SENTINEL_URL` and
   `SENTINEL_API_KEY` still win. It needs a server that supports it.
+- `sentinel pull <run id>` fetches the pull request of a run into the local branch
+  `sentinel/<run id>` and switches to it. It refuses uncommitted changes, and an
+  existing branch only moves forward.
+- `sentinel resume <run id>` continues a run that paused at its budget, from the work
+  it kept if any, with `--budget` for the new limit. It needs a server that resumes runs.
+- `sentinel stop --yes` stops every run of the server and refuses new ones until the
+  owner allows them again in the panel. It needs a server that accepts it from an API
+  key.
+- `sentinel update` replaces the command with the latest release after the same checks
+  as the installer; `--check` only says whether there is one.
+
+### Changed
+
+- The server that `sentinel up` runs accepts `sentinel login`, `sentinel resume` and
+  `sentinel stop`, and its QA knows which part of a change is your local work. A run
+  that paused at its budget before writing anything can be resumed too: the task
+  starts again under the new budget.
 
 ### Fixed
 
