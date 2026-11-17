@@ -47,7 +47,7 @@ var secrets = []struct {
 	{"SENTINEL_MASTER_KEY", fernetKey},
 	{"SENTINEL_ADMIN_KEY", token(32)},
 	{"SENTINEL_ARCHITECT_HMAC_KEY", token(48)},
-	{"SENTINEL_SIGNING_KEY", token(48)},
+	{signingKeySetting, signingKey},
 }
 
 var emailPattern = regexp.MustCompile(`^[^@\s]{1,64}@[^@\s]{1,255}$`)
@@ -183,6 +183,10 @@ func (i *Install) Up(ctx context.Context, email string, signIn bool) (Result, er
 	}
 	if created {
 		i.say("Created the secrets of this installation in %s", filepath.Join(i.Dir, envFile))
+	} else if repaired, err := i.repairSigningKey(); err != nil {
+		return result, fmt.Errorf("checking the receipt signing key: %w", err)
+	} else if repaired {
+		i.say("Replaced the receipt signing key: the one this installation had could not sign. Receipts from now on are signed.")
 	}
 	// Read again on every run, so a new `gh auth login` reaches Sentinel.
 	if err := i.setEnv(GitHubTokenSetting, githubToken); err != nil {
@@ -445,6 +449,53 @@ func token(n int) func(io.Reader) (string, error) {
 		}
 		return base64.RawURLEncoding.EncodeToString(buf), nil
 	}
+}
+
+// signingKeySetting signs the receipts of the runs.
+const signingKeySetting = "SENTINEL_SIGNING_KEY"
+
+// signingKey is an Ed25519 private key: 32 random bytes in standard base64, the
+// form the server loads (and the one Sentinel's own servers are given). Any
+// other form makes the server sign nothing.
+func signingKey(r io.Reader) (string, error) {
+	buf := make([]byte, ed25519SeedSize)
+	if _, err := io.ReadFull(r, buf); err != nil {
+		return "", err
+	}
+	return base64.StdEncoding.EncodeToString(buf), nil
+}
+
+const ed25519SeedSize = 32
+
+// validSigningKey reports whether value is a key the server can sign with.
+func validSigningKey(value string) bool {
+	raw, err := base64.StdEncoding.DecodeString(strings.TrimSpace(value))
+	return err == nil && len(raw) == ed25519SeedSize
+}
+
+// repairSigningKey replaces a signing key the server cannot use. Versions up
+// to 0.3.2 wrote 48 bytes in URL-safe base64, so no receipt of those
+// installations was signed; a new key loses nothing. It reports whether it
+// replaced the key.
+func (i *Install) repairSigningKey() (bool, error) {
+	data, err := os.ReadFile(filepath.Join(i.Dir, envFile))
+	if err != nil {
+		return false, err
+	}
+	for _, line := range strings.Split(string(data), "\n") {
+		if value, ok := strings.CutPrefix(strings.TrimRight(line, "\r"), signingKeySetting+"="); ok && validSigningKey(value) {
+			return false, nil
+		}
+	}
+	source := i.Rand
+	if source == nil {
+		source = rand.Reader
+	}
+	key, err := signingKey(source)
+	if err != nil {
+		return false, err
+	}
+	return true, i.setEnv(signingKeySetting, key)
 }
 
 // fernetKey is 32 random bytes in padded URL-safe base64, the form the server's

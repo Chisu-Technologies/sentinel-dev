@@ -7,22 +7,44 @@ Notable changes are listed here, following
 
 ## [Unreleased]
 
+## [0.3.3] - 2026-11-17
+
 ### Added
 
 - `sentinel run "<task>"` sends the task and a patch of your working tree to a Sentinel
   server, waits, and prints the pull request. It stops the run when the server did not
   take the patch, as a server without support for local work would do the task
   without it. `--dry-run` still sends nothing.
+- The server that `sentinel up` runs accepts a task together with your uncommitted
+  work, which `sentinel run` uses.
+- A task that reaches its budget pauses instead of failing, and resumes with a larger
+  limit or on another model.
+- The owner can stop every run of the installation at once; only the owner allows runs
+  again.
+- Every change gets a security review and a scan for secrets and insecure code before it
+  is approved.
 
 ### Changed
 
 - The patch of a task is limited to 128 KiB, the limit of the server, and a changed
   file whose text is not UTF-8 is refused before anything is sent.
+- The panel uses a side menu, also on a phone.
+- A task that does not fit in the machine's memory waits for room instead of failing.
 
 ### Fixed
 
 - `sentinel verify` accepts a server that queues the run, which answers `202 Accepted`
   instead of `201 Created`.
+- Receipts are signed again. `sentinel up` wrote a signing key the server could not
+  load, so every receipt showed as not signed; each `up` now replaces such a key and
+  says so, keeping every other setting.
+- The Brain works on one machine: it answered that the shared Brain was disabled.
+- Architect plans move past their first step on one machine.
+- An approved plan no longer waits forever for checks on a repository that has no
+  workflow running on pull requests; merging the plan's pull request is still yours.
+- A message to a failed, completed or cancelled plan is refused with a clear reason
+  instead of leaving the Architect's turn open.
+
 
 ## [0.3.2] - 2026-11-15
 
