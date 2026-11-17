@@ -332,7 +332,8 @@ type ResumeRequest struct {
 // ErrNoResume means the server started the task afresh instead of resuming it.
 var ErrNoResume = errors.New("this server does not resume runs yet; update it, or resume the task from its panel")
 
-// StartResume starts the run that continues req.Paused from the work it kept.
+// StartResume starts the run that continues req.Paused, from the work it kept
+// when it kept any.
 // The server names the run it continues in its answer; a server without resume
 // ignores the field and would do the task again from the start, so that run is
 // stopped at once.

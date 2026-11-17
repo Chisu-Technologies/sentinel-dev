@@ -66,7 +66,7 @@ func runResume(ctx context.Context, args []string, env Env) int {
 	if err != nil {
 		var apiErr *server.APIError
 		if errors.As(err, &apiErr) && apiErr.Code == "resume_run_not_paused" {
-			return fail("Run %s did not pause at its budget with its work kept, so there is nothing to resume. To do the task again: sentinel run", id)
+			return fail("Run %s did not pause at its budget, so there is nothing to resume. To do the task again: sentinel run", id)
 		}
 		return fail("%v", err)
 	}

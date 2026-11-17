@@ -13,7 +13,7 @@ Notable changes are listed here, following
   `sentinel/<run id>` and switches to it. It refuses uncommitted changes, and an
   existing branch only moves forward.
 - `sentinel resume <run id>` continues a run that paused at its budget, from the work
-  it kept, with `--budget` for the new limit. It needs a server that resumes runs.
+  it kept if any, with `--budget` for the new limit. It needs a server that resumes runs.
 - `sentinel stop --yes` stops every run of the server and refuses new ones until the
   owner allows them again in the panel. It needs a server that accepts it from an API
   key.

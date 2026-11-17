@@ -11,7 +11,7 @@
 | `sentinel doctor` | Check that git, the GitHub CLI and ssh are installed on this machine, and that `gh` is signed in to github.com. |
 | `sentinel doctor <destination>` | Check a server before installing on it: operating system, architecture, privileges, systemd, memory and Docker. It only reads: it installs and configures nothing on the server. |
 | `sentinel pull <run id>` | Fetch the pull request of a run into the local branch `sentinel/<run id>` and switch to it. |
-| `sentinel resume <run id>` | Continue a run that paused at its budget, from the work it kept, and wait for the pull request. `--budget` sets the new limit per task. |
+| `sentinel resume <run id>` | Continue a run that paused at its budget, from the work it kept if any, and wait for the pull request. `--budget` sets the new limit per task. |
 | `sentinel run "<task>"` | Send a task and a patch of this working tree to a Sentinel server, wait, and print the pull request. With `--dry-run` it shows what would be sent: the GitHub repository, the commit GitHub already has, and the files in the patch. It then sends nothing. |
 | `sentinel runs` | List the latest runs of a Sentinel server: status, repository, pull request, cost, start and title. |
 | `sentinel setup <destination>` | Run Sentinel on your server, over ssh: `sentinel up` there, with the GitHub CLI session of this machine. |
@@ -162,7 +162,8 @@
     command line was wrong.
 - `sentinel resume` takes the id of a run that ended because it reached its budget per
   task. It reads the run's task from `SENTINEL_URL` and starts a new run of it that
-  begins with the work the paused run kept, so nothing done so far is repeated. Without
+  begins with the work the paused run kept, so nothing done so far is repeated; a run
+  that paused before writing anything starts the task again. Without
   `--budget` the new run gets the organization's limit; a limit above it is lowered to
   it, and only the owner can resume above it, in the panel. A run is resumed once. The
   server names the run it continues in its answer; a server that does not, and so
