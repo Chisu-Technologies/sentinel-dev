@@ -163,7 +163,10 @@ func (c *Client) Clean(s string, limit int) string {
 		}
 		return r
 	}, s)
-	s = strings.ReplaceAll(s, c.key, "[redacted]")
+	// A sign-in client has no key yet; replacing "" would mark every gap.
+	if c.key != "" {
+		s = strings.ReplaceAll(s, c.key, "[redacted]")
+	}
 	if utf8.RuneCountInString(s) > limit {
 		s = string([]rune(s)[:limit]) + "..."
 	}
@@ -181,6 +184,9 @@ func (c *Client) CleanText(s string) string {
 		}
 		return r
 	}, s)
+	if c.key == "" {
+		return s
+	}
 	return strings.ReplaceAll(s, c.key, "[redacted]")
 }
 
@@ -425,7 +431,9 @@ func (c *Client) fetch(ctx context.Context, method, path string, body any, accep
 	if err != nil {
 		return 0, nil, false, c.scrub(err)
 	}
-	req.Header.Set("Authorization", "Bearer "+c.key)
+	if c.key != "" {
+		req.Header.Set("Authorization", "Bearer "+c.key)
+	}
 	req.Header.Set("Accept", accept)
 	req.Header.Set("User-Agent", c.userAgent)
 	if body != nil {

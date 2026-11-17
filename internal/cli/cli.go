@@ -53,6 +53,10 @@ type Env struct {
 	Bundle fs.FS
 	// Rand is the source of the secrets `up` creates. Nil means crypto/rand.
 	Rand io.Reader
+	// ConfigDir is the folder where `login` keeps its sign-in, the user's
+	// configuration folder in a real run. Empty means no sign-in is read or
+	// kept, so a test never sees the machine's own.
+	ConfigDir string
 }
 
 func (e Env) getenv(name string) string {
@@ -73,6 +77,8 @@ Commands:
   cancel <run id>           Stop a run of a Sentinel server
   doctor [destination]      Check this machine, or a server before installing on it
   down                      Stop Sentinel on this machine; its data stays
+  login [--url <address>]   Sign in to a Sentinel server, approving it in its panel
+  logout                    Forget the sign-in of sentinel login
   run "<task>"              Send a task and this working tree to a Sentinel server
   runs                      List the runs of a Sentinel server
   setup <destination>       Run Sentinel on your server, over ssh
@@ -105,6 +111,10 @@ func Run(ctx context.Context, args []string, env Env) int {
 		return runDown(ctx, rest, env)
 	case "up":
 		return runUp(ctx, rest, env)
+	case "login":
+		return runLogin(ctx, rest, env)
+	case "logout":
+		return runLogout(ctx, rest, env)
 	case "run":
 		return runRun(ctx, rest, env)
 	case "runs":

@@ -18,9 +18,10 @@ cambio, lo prueba. El resultado es un pull request para que lo revises; el agent
 puede hacer merge.
 
 > **Pre-alfa.** Hoy solo existen `sentinel up`, `sentinel down`, `sentinel cancel`,
-> `sentinel doctor`, `sentinel run`, `sentinel runs`, `sentinel setup`,
-> `sentinel verify`, `sentinel version` y `sentinel watch`. El resto de esta página es el diseño previsto;
-> mira la [hoja de ruta](docs/roadmap.md).
+> `sentinel doctor`, `sentinel login`, `sentinel logout`, `sentinel run`,
+> `sentinel runs`, `sentinel setup`, `sentinel verify`, `sentinel version` y
+> `sentinel watch`. El resto de esta página es el diseño previsto; mira la [hoja de
+> ruta](docs/roadmap.md).
 
 ## Cómo va a funcionar
 

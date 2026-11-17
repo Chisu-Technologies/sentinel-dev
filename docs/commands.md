@@ -10,6 +10,8 @@
 | `sentinel down` | Stop Sentinel on this machine. Its data stays. |
 | `sentinel doctor` | Check that git, the GitHub CLI and ssh are installed on this machine, and that `gh` is signed in to github.com. |
 | `sentinel doctor <destination>` | Check a server before installing on it: operating system, architecture, privileges, systemd, memory and Docker. It only reads: it installs and configures nothing on the server. |
+| `sentinel login --url <address>` | Sign in to a Sentinel server: approve the code it prints in the server's panel, and the command keeps an API key for you. |
+| `sentinel logout` | Forget the sign-in of `sentinel login`. |
 | `sentinel run "<task>"` | Send a task and a patch of this working tree to a Sentinel server, wait, and print the pull request. With `--dry-run` it shows what would be sent: the GitHub repository, the commit GitHub already has, and the files in the patch. It then sends nothing. |
 | `sentinel runs` | List the latest runs of a Sentinel server: status, repository, pull request, cost, start and title. |
 | `sentinel setup <destination>` | Run Sentinel on your server, over ssh: `sentinel up` there, with the GitHub CLI session of this machine. |
@@ -55,8 +57,8 @@
   - `SENTINEL_URL` is the address of the server. It must be `https`; `http` is
     accepted only for `localhost`, `127.0.0.1` and `[::1]`. It must not carry a user
     name, a query or a fragment.
-  - `SENTINEL_API_KEY` is the key. It is read only from the environment, never from
-    a flag.
+  - `SENTINEL_API_KEY` is the key. It is read from the environment, or from the
+    sign-in of `sentinel login` when neither variable is set; never from a flag.
   - `<pull request>` is a number such as `12`, for the GitHub repository of the
     current checkout, or a URL such as `https://github.com/owner/name/pull/12`.
   - `--base <branch>` names the branch the pull request targets, when it is not the
@@ -70,6 +72,20 @@
     `--no-wait` succeeded; `1` for any other verdict, a run that failed or was
     stopped, a timeout, a missing variable or an error from the server; `2` when the
     command line was wrong.
+- `sentinel login --url <address>` (or `SENTINEL_URL`) asks the server for a sign-in
+  and prints a code and a link to its panel, built from the address you gave. An owner
+  or an admin signed in to the panel opens the link, checks the code and approves it;
+  meanwhile the command waits, at most 15 minutes. Once approved it receives a new
+  API key, tied to the person who approved, and saves the address and the key in
+  `sentinel/credentials.json` in your user configuration folder (`~/.config` on Linux,
+  `~/Library/Application Support` on macOS, `%AppData%` on Windows), readable by you
+  only. Every command that talks to a server uses it when `SENTINEL_URL` and
+  `SENTINEL_API_KEY` are both unset. Your GitHub token is not sent. The key is revoked
+  in the panel, in Settings > API keys, like any other.
+  - Exit status: `0` when the key was saved, `1` when the sign-in was denied, expired
+    or failed, `2` when the command line was wrong.
+- `sentinel logout` deletes that file. The key keeps working until it is revoked in
+  the panel.
 - `sentinel cancel`, `sentinel runs` and `sentinel watch` use the same `SENTINEL_URL`
   and `SENTINEL_API_KEY` as `sentinel verify`, and the same rules for them.
   - `sentinel cancel` takes the id of one run, as `sentinel runs` shows it. It reads
@@ -161,7 +177,6 @@
 
 | Command | What it will do | Phase |
 | --- | --- | --- |
-| `sentinel login` | Sign in with GitHub, reusing the session of `gh`. | 1 |
 | `sentinel pull [run]` | Fetch the branch of the pull request. | 1 |
 | `sentinel resume <run>` | Continue a paused run with a larger limit or another model. | 1 |
 | `sentinel stop` | Halt every run on the server until you allow them again. | 1 |

@@ -22,7 +22,9 @@
   take the run over its spending limit is refused, and the run pauses.
 - `git push` from a sandbox goes to the gateway, which adds the credential. The
   sandbox never holds it.
-- Your laptop keeps one revocable token for the server.
+- Your laptop keeps one revocable token for the server: in the environment, or in a
+  file only you can read after `sentinel login`. A sign-in needs an owner or an admin
+  to approve its code in the panel, and the key it gives is revoked there.
 
 ## The sandbox
 

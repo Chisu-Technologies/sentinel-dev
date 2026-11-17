@@ -7,6 +7,13 @@ Notable changes are listed here, following
 
 ## [Unreleased]
 
+### Added
+
+- `sentinel login --url <address>` signs in to a Sentinel server: an owner or admin
+  approves the code it prints in the panel, and the command keeps an API key for you,
+  readable by you only. `sentinel logout` forgets it. `SENTINEL_URL` and
+  `SENTINEL_API_KEY` still win. It needs a server that supports it.
+
 ### Fixed
 
 - `sentinel run` no longer leaves out of the patch an edit of the same size made in
