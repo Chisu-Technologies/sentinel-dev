@@ -13,11 +13,21 @@ Notable changes are listed here, following
   server, waits, and prints the pull request. It stops the run when the server did not
   take the patch, as a server without support for local work would do the task
   without it. `--dry-run` still sends nothing.
+- The server that `sentinel up` runs accepts a task together with your uncommitted
+  work, which `sentinel run` uses.
+- A task that reaches its budget pauses instead of failing, and resumes with a larger
+  limit or on another model.
+- The owner can stop every run of the installation at once; only the owner allows runs
+  again.
+- Every change gets a security review and a scan for secrets and insecure code before it
+  is approved.
 
 ### Changed
 
 - The patch of a task is limited to 128 KiB, the limit of the server, and a changed
   file whose text is not UTF-8 is refused before anything is sent.
+- The panel uses a side menu, also on a phone.
+- A task that does not fit in the machine's memory waits for room instead of failing.
 
 ### Fixed
 
