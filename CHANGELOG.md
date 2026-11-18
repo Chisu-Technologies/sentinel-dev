@@ -7,6 +7,13 @@ Notable changes are listed here, following
 
 ## [Unreleased]
 
+### Added
+
+- `sentinel models add <name> <address>` lets the Sentinel on this machine use a model served
+  here (Ollama, LM Studio, vLLM). `localhost` becomes `host.docker.internal`; plain HTTP is
+  only for this machine or a private address. `sentinel models` lists them and
+  `sentinel models remove <name>` removes one. It needs a Sentinel release with local models.
+
 ## [0.4.0] - 2026-11-18
 
 ### Changed
