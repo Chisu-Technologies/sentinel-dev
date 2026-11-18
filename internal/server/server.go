@@ -499,6 +499,33 @@ func (c *Client) StopAll(ctx context.Context) (Halt, error) {
 	return halt, nil
 }
 
+// ChatGPTSession is a ChatGPT sign-in the server keeps, to call OpenAI with
+// that person's plan. It travels only in this request's body.
+type ChatGPTSession struct {
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token"`
+	ExpiresIn    int    `json:"expires_in"`
+	ClientID     string `json:"client_id"`
+	Account      string `json:"account"`
+}
+
+// PutChatGPTSession hands a ChatGPT sign-in to the server and returns the
+// account it says it keeps. Only a Sentinel the person runs themselves (the
+// open edition) takes one.
+func (c *Client) PutChatGPTSession(ctx context.Context, session ChatGPTSession) (string, error) {
+	var answer struct {
+		Status  string `json:"status"`
+		Account string `json:"account"`
+	}
+	if err := c.do(ctx, http.MethodPut, "/api/org/inference/chatgpt-session", session, http.StatusOK, &answer); err != nil {
+		return "", err
+	}
+	if answer.Status != "signed_in" {
+		return "", errors.New("the server did not say it kept the sign-in")
+	}
+	return answer.Account, nil
+}
+
 // fetch sends one request and reads at most maxBody+1 bytes of the answer, so
 // every endpoint shares the same key handling and the same bound.
 func (c *Client) fetch(ctx context.Context, method, path string, body any, accept string) (status int, data []byte, tooLarge bool, err error) {

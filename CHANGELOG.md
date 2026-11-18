@@ -16,6 +16,10 @@ Notable changes are listed here, following
 - `sentinel agents` adds `sentinel mcp` to the coding agents it finds: Claude Code,
   Codex and Gemini CLI through their own command, Cursor by editing
   `~/.cursor/mcp.json` after keeping a copy. `--dry-run` changes nothing.
+- `sentinel login --chatgpt` lets your Sentinel use your ChatGPT plan, through OpenAI's
+  "Sign in with ChatGPT". The sign-in runs on this machine and goes to the Sentinel you
+  are signed in to; no token is printed or kept here. It needs a Sentinel release with
+  the ChatGPT plan.
 
 ## [0.3.4] - 2026-11-17
 

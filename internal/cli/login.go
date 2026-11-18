@@ -21,12 +21,20 @@ const maxLoginWait = 15 * time.Minute
 func runLogin(ctx context.Context, args []string, env Env) int {
 	fs := flag.NewFlagSet("login", flag.ContinueOnError)
 	address := fs.String("url", "", "the address of your Sentinel server; SENTINEL_URL when not given")
-	if code := parse(fs, args, env, "login [--url <address>]"); code >= 0 {
+	withChatGPT := fs.Bool("chatgpt", false, "lend your ChatGPT plan to the Sentinel you are signed in to")
+	if code := parse(fs, args, env, "login [--url <address>] | login --chatgpt"); code >= 0 {
 		return code
 	}
 	if fs.NArg() != 0 {
 		fmt.Fprintln(env.Stderr, "sentinel login takes no arguments; give the server with --url or SENTINEL_URL")
 		return ExitUsage
+	}
+	if *withChatGPT {
+		if *address != "" {
+			fmt.Fprintln(env.Stderr, "sentinel login --chatgpt uses the server you are already signed in to; sign in with sentinel login --url first")
+			return ExitUsage
+		}
+		return runLoginChatGPT(ctx, env)
 	}
 	raw := *address
 	if raw == "" {
