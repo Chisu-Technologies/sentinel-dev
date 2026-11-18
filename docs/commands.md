@@ -16,6 +16,7 @@
 | `sentinel pull <run id>` | Fetch the pull request of a run into the local branch `sentinel/<run id>` and switch to it. |
 | `sentinel resume <run id>` | Continue a run that paused at its budget, from the work it kept if any, and wait for the pull request. `--budget` sets the new limit per task. |
 | `sentinel run "<task>"` | Send a task and a patch of this working tree to a Sentinel server, wait, and print the pull request. With `--dry-run` it shows what would be sent: the GitHub repository, the commit GitHub already has, and the files in the patch. It then sends nothing. |
+| `sentinel run --from-claude-code` | Like `sentinel run`, with the task taken from the newest Claude Code session started in this folder: what you asked there, newest request first, at most 4000 characters. Claude's answers and the tools' output are never read. Use it when Claude Code stops at its limit; `--dry-run` shows the task first. |
 | `sentinel runs` | List the latest runs of a Sentinel server: status, repository, pull request, cost, start and title. |
 | `sentinel setup <destination>` | Run Sentinel on your server, over ssh: `sentinel up` there, with the GitHub CLI session of this machine. |
 | `sentinel stop --yes` | Stop every run of a Sentinel server and refuse new ones until the owner allows runs again in its panel. |

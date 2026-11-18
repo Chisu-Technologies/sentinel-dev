@@ -20,6 +20,10 @@ Notable changes are listed here, following
   "Sign in with ChatGPT". The sign-in runs on this machine and goes to the Sentinel you
   are signed in to; no token is printed or kept here. It needs a Sentinel release with
   the ChatGPT plan.
+- `sentinel run --from-claude-code` hands Sentinel the work a Claude Code session left
+  in this folder, for example when Claude Code reached its limit. The task is what you
+  asked in the newest session there, newest request first and at most 4000 characters;
+  Claude's answers and the tools' output are never read. `--dry-run` shows it first.
 
 ## [0.3.4] - 2026-11-17
 

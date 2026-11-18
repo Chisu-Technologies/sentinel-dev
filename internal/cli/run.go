@@ -43,11 +43,17 @@ func runRun(ctx context.Context, args []string, env Env) int {
 	noWait := fs.Bool("no-wait", false, "print the run id and stop, without waiting for the pull request")
 	timeout := fs.Duration("timeout", 2*time.Hour, "how long to wait for the run to end, such as 90m")
 	base := fs.String("base", "", "the branch the pull request targets, when it is not the default one")
-	if code := parse(fs, args, env, `run [--dry-run] [--json] [--no-wait] [--timeout <duration>] [--base <branch>] "<task>"`); code >= 0 {
+	fromClaudeCode := fs.Bool("from-claude-code", false, "take the task from the newest Claude Code session in this folder")
+	if code := parse(fs, args, env, `run [--dry-run] [--json] [--no-wait] [--timeout <duration>] [--base <branch>] "<task>" | run --from-claude-code [...]`); code >= 0 {
 		return code
 	}
 	task := strings.TrimSpace(fs.Arg(0))
-	if fs.NArg() != 1 || task == "" {
+	if *fromClaudeCode {
+		if fs.NArg() != 0 {
+			fmt.Fprintln(env.Stderr, "sentinel run --from-claude-code takes the task from the Claude Code session; give no task with it")
+			return ExitUsage
+		}
+	} else if fs.NArg() != 1 || task == "" {
 		fmt.Fprintln(env.Stderr, `sentinel run takes the task as one argument, for example: sentinel run "fix the flaky login test"`)
 		return ExitUsage
 	}
@@ -60,6 +66,15 @@ func runRun(ctx context.Context, args []string, env Env) int {
 	if baseGiven && !validBase(*base) {
 		fmt.Fprintln(env.Stderr, "sentinel run: --base needs a branch name")
 		return ExitUsage
+	}
+	if *fromClaudeCode {
+		taken, session, err := claudeCodeTask(env, env.Dir)
+		if err != nil {
+			fmt.Fprintf(env.Stderr, "sentinel run: %v\n", err)
+			return ExitFailed
+		}
+		fmt.Fprintf(env.Stderr, "sentinel: the task comes from Claude Code session %s\n", session)
+		task = taken
 	}
 
 	// The variables are checked before git reads the tree, so a missing one
