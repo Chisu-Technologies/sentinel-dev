@@ -122,6 +122,8 @@ func Run(ctx context.Context, args []string, env Env) int {
 		return runVersion(rest, env)
 	case "agents":
 		return runAgents(ctx, rest, env)
+	case limitWarningCommand:
+		return runLimitWarning(rest, env)
 	case "cancel":
 		return runCancel(ctx, rest, env)
 	case "doctor":

@@ -24,6 +24,10 @@ Notable changes are listed here, following
   in this folder, for example when Claude Code reached its limit. The task is what you
   asked in the newest session there, newest request first and at most 4000 characters;
   Claude's answers and the tools' output are never read. `--dry-run` shows it first.
+- `sentinel agents` also adds to Claude Code (`~/.claude/settings.json`, after keeping a
+  copy) a `StopFailure` hook for `rate_limit`: when Claude Code stops at its limit, a
+  desktop notification suggests `sentinel run --from-claude-code`. The terminal must
+  show OSC 9 notifications (Windows Terminal, iTerm2, ConEmu, WezTerm).
 
 ## [0.3.4] - 2026-11-17
 

@@ -62,6 +62,7 @@ func runAgents(ctx context.Context, args []string, env Env) int {
 			func() (bool, error) { return jsonHasServer(env, ".gemini/settings.json") },
 			[]string{"mcp", "add", "--scope", "user", mcpServerName, exe, "mcp"}),
 		cursorAgent(env, *dry, exe),
+		claudeCodeLimitAgent(env, *dry, exe),
 	}
 
 	failed := false
@@ -124,7 +125,7 @@ func cliAgent(ctx context.Context, env Env, dry bool, label, program string, has
 }
 
 // cursorAgent edits ~/.cursor/mcp.json, the global file Cursor reads; Cursor
-// has no command to add a server. The file is copied aside first.
+// has no command to add a server.
 func cursorAgent(env Env, dry bool, exe string) agentResult {
 	const label = "Cursor"
 	if env.HomeDir == "" {
@@ -134,7 +135,26 @@ func cursorAgent(env Env, dry bool, exe string) agentResult {
 	if info, err := os.Stat(dir); err != nil || !info.IsDir() {
 		return agentResult{Agent: label, Status: "not_installed"}
 	}
-	path := filepath.Join(dir, "mcp.json")
+	return editJSONSettings(label, filepath.Join(dir, "mcp.json"), dry, func(doc map[string]any) bool {
+		servers, _ := doc["mcpServers"].(map[string]any)
+		if servers == nil {
+			servers = map[string]any{}
+		}
+		if _, ok := servers[mcpServerName]; ok {
+			return false
+		}
+		servers[mcpServerName] = map[string]any{"type": "stdio", "command": exe, "args": []string{"mcp"}}
+		doc["mcpServers"] = servers
+		return true
+	})
+}
+
+// editJSONSettings changes an agent's JSON settings file, which the agent has
+// no command for. add changes the document and says whether it did; false
+// means Sentinel is already there. The file is copied aside before it is
+// rewritten, and a file that is not plain JSON is never rewritten: the
+// person's settings stay.
+func editJSONSettings(label, path string, dry bool, add func(doc map[string]any) bool) agentResult {
 	doc := map[string]any{}
 	original, err := os.ReadFile(path)
 	switch {
@@ -144,24 +164,20 @@ func cursorAgent(env Env, dry bool, exe string) agentResult {
 		return agentResult{Agent: label, Status: "failed", Detail: err.Error()}
 	case len(bytes.TrimSpace(original)) > 0:
 		if err := json.Unmarshal(original, &doc); err != nil {
-			// Never rewrite a file we cannot read: the person's settings stay.
 			return agentResult{Agent: label, Status: "failed", Detail: path + " is not JSON; add Sentinel to it by hand"}
 		}
 	}
-	servers, _ := doc["mcpServers"].(map[string]any)
-	if servers == nil {
-		servers = map[string]any{}
-	}
-	if _, ok := servers[mcpServerName]; ok {
+	if !add(doc) {
 		return agentResult{Agent: label, Status: "already"}
 	}
 	if dry {
 		return agentResult{Agent: label, Status: "would_add", Detail: "edit " + path}
 	}
-	servers[mcpServerName] = map[string]any{"type": "stdio", "command": exe, "args": []string{"mcp"}}
-	doc["mcpServers"] = servers
 	data, err := json.MarshalIndent(doc, "", "  ")
 	if err != nil {
+		return agentResult{Agent: label, Status: "failed", Detail: err.Error()}
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return agentResult{Agent: label, Status: "failed", Detail: err.Error()}
 	}
 	mode := fs.FileMode(0o644)

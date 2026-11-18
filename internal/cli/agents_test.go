@@ -58,7 +58,7 @@ func TestAgentsAddsSentinelWithEachAgentsOwnCommand(t *testing.T) {
 	if res.code != ExitOK {
 		t.Fatalf("exit %d: %s", res.code, res.stderr)
 	}
-	want := map[string]string{"Claude Code": "added", "Codex": "added", "Gemini CLI": "added", "Cursor": "not_installed"}
+	want := map[string]string{"Claude Code": "added", "Codex": "added", "Gemini CLI": "added", "Cursor": "not_installed", "Claude Code limit warning": "added"}
 	if got := statusOf(out); !equalMaps(got, want) {
 		t.Errorf("status = %v, want %v", got, want)
 	}
@@ -78,11 +78,12 @@ func TestAgentsLeavesAnAgentThatAlreadyHasSentinel(t *testing.T) {
 	home := t.TempDir()
 	write(t, filepath.Join(home, ".codex", "config.toml"), "model = \"x\"\n\n[mcp_servers.sentinel]\ncommand = \"sentinel\"\n")
 	write(t, filepath.Join(home, ".gemini", "settings.json"), `{"mcpServers":{"sentinel":{"command":"sentinel","args":["mcp"]}}}`)
+	write(t, filepath.Join(home, ".claude", "settings.json"), `{"hooks":{"StopFailure":[{"matcher":"rate_limit","hooks":[{"type":"command","command":"/old/path/sentinel claude-code-limit"}]}]}}`)
 	runner := &execxtest.Fake{Results: map[string]execx.Result{"claude mcp get sentinel": {ExitCode: 0}}}
 
 	_, out := agents(t, runner, home)
 
-	want := map[string]string{"Claude Code": "already", "Codex": "already", "Gemini CLI": "already", "Cursor": "not_installed"}
+	want := map[string]string{"Claude Code": "already", "Codex": "already", "Gemini CLI": "already", "Cursor": "not_installed", "Claude Code limit warning": "already"}
 	if got := statusOf(out); !equalMaps(got, want) {
 		t.Errorf("status = %v, want %v", got, want)
 	}
