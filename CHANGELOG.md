@@ -7,6 +7,13 @@ Notable changes are listed here, following
 
 ## [Unreleased]
 
+### Added
+
+- `sentinel mcp` serves Sentinel's tools to a coding agent over MCP (stdio): verify a
+  pull request, send a task with this working tree, follow a run, list runs and stop
+  one. The agent writes with its own model and sign-in; Sentinel verifies and signs.
+  In Claude Code: `claude mcp add --transport stdio sentinel -- sentinel mcp`.
+
 ## [0.3.4] - 2026-11-17
 
 ### Added
