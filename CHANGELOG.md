@@ -7,6 +7,14 @@ Notable changes are listed here, following
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-18
+
+### Changed
+
+- The server that `sentinel up` runs accepts `sentinel login --chatgpt`, learns only
+  from lessons you approve, runs the checks a repository declares in `.sentinel.yaml`
+  before it commits, and shows which runs are reviews of a plan you sent directly.
+
 ### Added
 
 - `sentinel mcp` serves Sentinel's tools to a coding agent over MCP (stdio): verify a
