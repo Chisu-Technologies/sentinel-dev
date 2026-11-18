@@ -28,6 +28,9 @@ Notable changes are listed here, following
   copy) a `StopFailure` hook for `rate_limit`: when Claude Code stops at its limit, a
   desktop notification suggests `sentinel run --from-claude-code`. The terminal must
   show OSC 9 notifications (Windows Terminal, iTerm2, ConEmu, WezTerm).
+- `sentinel backup` and `sentinel restore --yes <backup>` back up and restore the Sentinel
+  on this machine: its three databases as `pg_dump` custom dumps with a `SHA256SUMS`, the
+  way central's own backups are made. A restore checks the sums before it stops anything.
 
 ## [0.3.4] - 2026-11-17
 
