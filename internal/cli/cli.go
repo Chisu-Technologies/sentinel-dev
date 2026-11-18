@@ -57,6 +57,13 @@ type Env struct {
 	// configuration folder in a real run. Empty means no sign-in is read or
 	// kept, so a test never sees the machine's own.
 	ConfigDir string
+	// HomeDir is the user's home folder, where `agents` finds the settings of
+	// Codex, Gemini CLI and Cursor. Empty means none is read or written.
+	HomeDir string
+	// Executable is the path of this command, written into the agents'
+	// settings so they start the same binary. Empty means "sentinel", found on
+	// the PATH.
+	Executable string
 }
 
 func (e Env) getenv(name string) string {
@@ -75,6 +82,7 @@ Usage:
 
 Commands:
   cancel <run id>           Stop a run of a Sentinel server
+  agents [--dry-run]        Add Sentinel to the coding agents on this machine
   doctor [destination]      Check this machine, or a server before installing on it
   down                      Stop Sentinel on this machine; its data stays
   login [--url <address>]   Sign in to a Sentinel server, approving it in its panel
@@ -108,6 +116,8 @@ func Run(ctx context.Context, args []string, env Env) int {
 		return ExitOK
 	case "version", "--version":
 		return runVersion(rest, env)
+	case "agents":
+		return runAgents(ctx, rest, env)
 	case "cancel":
 		return runCancel(ctx, rest, env)
 	case "doctor":

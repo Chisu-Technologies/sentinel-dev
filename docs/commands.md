@@ -6,6 +6,7 @@
 
 | Command | What it does |
 | --- | --- |
+| `sentinel agents` | Add `sentinel mcp` to the coding agents on this machine (Claude Code, Codex, Gemini CLI, Cursor). `--dry-run` says what it would add and changes nothing. |
 | `sentinel cancel <run id>` | Stop a run of a Sentinel server. |
 | `sentinel down` | Stop Sentinel on this machine. Its data stays. |
 | `sentinel doctor` | Check that git, the GitHub CLI and ssh are installed on this machine, and that `gh` is signed in to github.com. |
@@ -210,6 +211,13 @@ In Claude Code:
 ```bash
 claude mcp add --transport stdio sentinel -- sentinel mcp
 ```
+
+Or let `sentinel agents` add it to every agent it finds. Claude Code, Codex and
+Gemini CLI get it through their own `mcp add` command, so their settings keep the
+format they expect. Cursor has no such command: `~/.cursor/mcp.json` is edited, and
+the file it had is kept next to it as `mcp.json.before-sentinel`. An agent that
+already has Sentinel is left as it is, and a file that is not plain JSON is never
+rewritten. Restart an agent that is open so it loads Sentinel.
 
 Any other agent that takes a stdio MCP server needs the command `sentinel` with the
 argument `mcp`. The server it reaches is the one of `sentinel login`, or
