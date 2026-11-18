@@ -10,6 +10,7 @@
 | `sentinel down` | Stop Sentinel on this machine. Its data stays. |
 | `sentinel doctor` | Check that git, the GitHub CLI and ssh are installed on this machine, and that `gh` is signed in to github.com. |
 | `sentinel doctor <destination>` | Check a server before installing on it: operating system, architecture, privileges, systemd, memory and Docker. It only reads: it installs and configures nothing on the server. |
+| `sentinel mcp` | Serve Sentinel's tools to your coding agent (Claude Code, Codex, Cursor and others) over MCP. The agent starts it; you do not run it by hand. |
 | `sentinel pull <run id>` | Fetch the pull request of a run into the local branch `sentinel/<run id>` and switch to it. |
 | `sentinel resume <run id>` | Continue a run that paused at its budget, from the work it kept if any, and wait for the pull request. `--budget` sets the new limit per task. |
 | `sentinel run "<task>"` | Send a task and a patch of this working tree to a Sentinel server, wait, and print the pull request. With `--dry-run` it shows what would be sent: the GitHub repository, the commit GitHub already has, and the files in the patch. It then sends nothing. |
@@ -196,6 +197,34 @@
   - Exit status of `sentinel watch`: `0` when the run ended as `completed`; `1` for
     any other end, a timeout, a run the server does not know, a missing variable or
     an error from the server; `2` when the command line was wrong.
+
+## Sentinel in your coding agent
+
+`sentinel mcp` is a [Model Context Protocol](https://modelcontextprotocol.io) server
+over stdio. Your agent writes the change, with its own model and its own sign-in;
+Sentinel runs the tests in its sandbox, has a QA and reviewers that are not the model
+that wrote the change check it, and signs the result. Sentinel never merges.
+
+In Claude Code:
+
+```bash
+claude mcp add --transport stdio sentinel -- sentinel mcp
+```
+
+Any other agent that takes a stdio MCP server needs the command `sentinel` with the
+argument `mcp`. The server it reaches is the one of `sentinel login`, or
+`SENTINEL_URL` and `SENTINEL_API_KEY` in the agent's environment.
+
+| Tool | What it does |
+| --- | --- |
+| `sentinel_verify_pull_request` | Verify a pull request of the repository in the agent's folder. Returns the run id at once. |
+| `sentinel_run_task` | Send a task with the work in the agent's folder that is not on GitHub yet. Returns the run id at once. |
+| `sentinel_run_status` | Where a run is and, once it ends, its pull request, verdict, tests and cost. Read-only. |
+| `sentinel_list_runs` | The latest runs. Read-only. |
+| `sentinel_stop_run` | Stop one run that has not ended. |
+
+Each tool runs the command you would type, with `--json`, so the agent gets what a
+script gets. Nothing but protocol messages is written to stdout.
 
 ## Planned
 

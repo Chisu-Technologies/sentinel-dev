@@ -79,6 +79,7 @@ Commands:
   down                      Stop Sentinel on this machine; its data stays
   login [--url <address>]   Sign in to a Sentinel server, approving it in its panel
   logout                    Forget the sign-in of sentinel login
+  mcp                       Serve Sentinel's tools to a coding agent over MCP (stdio)
   pull <run id>             Fetch the pull request of a run into a local branch
   resume <run id>           Continue a run that paused at its budget
   run "<task>"              Send a task and this working tree to a Sentinel server
@@ -119,6 +120,8 @@ func Run(ctx context.Context, args []string, env Env) int {
 		return runLogin(ctx, rest, env)
 	case "logout":
 		return runLogout(ctx, rest, env)
+	case "mcp":
+		return runMCP(ctx, rest, env)
 	case "update":
 		return runUpdate(ctx, rest, env)
 	case "pull":
