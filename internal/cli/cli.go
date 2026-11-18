@@ -64,6 +64,9 @@ type Env struct {
 	// settings so they start the same binary. Empty means "sentinel", found on
 	// the PATH.
 	Executable string
+	// ChatGPTAuthBase is OpenAI's authorization server for `login --chatgpt`.
+	// Empty means OpenAI's own; only a test sets another.
+	ChatGPTAuthBase string
 }
 
 func (e Env) getenv(name string) string {
@@ -86,6 +89,7 @@ Commands:
   doctor [destination]      Check this machine, or a server before installing on it
   down                      Stop Sentinel on this machine; its data stays
   login [--url <address>]   Sign in to a Sentinel server, approving it in its panel
+  login --chatgpt           Let your Sentinel use your ChatGPT plan
   logout                    Forget the sign-in of sentinel login
   mcp                       Serve Sentinel's tools to a coding agent over MCP (stdio)
   pull <run id>             Fetch the pull request of a run into a local branch

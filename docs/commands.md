@@ -11,6 +11,7 @@
 | `sentinel down` | Stop Sentinel on this machine. Its data stays. |
 | `sentinel doctor` | Check that git, the GitHub CLI and ssh are installed on this machine, and that `gh` is signed in to github.com. |
 | `sentinel doctor <destination>` | Check a server before installing on it: operating system, architecture, privileges, systemd, memory and Docker. It only reads: it installs and configures nothing on the server. |
+| `sentinel login --chatgpt` | Let your Sentinel use your ChatGPT plan. You sign in with ChatGPT in your browser, on this machine, and the sign-in goes to the Sentinel you are signed in to. Only a Sentinel you run yourself (`sentinel up`) takes it. Its model calls use your plan's allowance, not an API key. |
 | `sentinel mcp` | Serve Sentinel's tools to your coding agent (Claude Code, Codex, Cursor and others) over MCP. The agent starts it; you do not run it by hand. |
 | `sentinel pull <run id>` | Fetch the pull request of a run into the local branch `sentinel/<run id>` and switch to it. |
 | `sentinel resume <run id>` | Continue a run that paused at its budget, from the work it kept if any, and wait for the pull request. `--budget` sets the new limit per task. |
