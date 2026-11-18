@@ -6,7 +6,7 @@
 
 | Command | What it does |
 | --- | --- |
-| `sentinel agents` | Add `sentinel mcp` to the coding agents on this machine (Claude Code, Codex, Gemini CLI, Cursor). `--dry-run` says what it would add and changes nothing. |
+| `sentinel agents` | Add `sentinel mcp` to the coding agents on this machine (Claude Code, Codex, Gemini CLI, Cursor). In Claude Code it also adds a hook that, when Claude Code stops at its limit, shows a desktop notification suggesting `sentinel run --from-claude-code`. `--dry-run` says what it would add and changes nothing. |
 | `sentinel cancel <run id>` | Stop a run of a Sentinel server. |
 | `sentinel down` | Stop Sentinel on this machine. Its data stays. |
 | `sentinel doctor` | Check that git, the GitHub CLI and ssh are installed on this machine, and that `gh` is signed in to github.com. |
