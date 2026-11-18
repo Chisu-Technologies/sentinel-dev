@@ -1,0 +1,237 @@
+package cli
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"errors"
+	"flag"
+	"fmt"
+	"io/fs"
+	"os"
+	"path/filepath"
+	"strings"
+
+	"github.com/Chisu-Technologies/sentinel-dev/internal/execx"
+)
+
+// agentResult is one line of `sentinel agents`.
+type agentResult struct {
+	Agent  string `json:"agent"`
+	Status string `json:"status"` // added, already, would_add, not_installed, failed
+	Detail string `json:"detail,omitempty"`
+}
+
+// mcpServerName is the name every agent knows Sentinel by.
+const mcpServerName = "sentinel"
+
+// runAgents adds `sentinel mcp` to the coding agents installed on this
+// machine. Where an agent has its own command for it (claude, codex, gemini),
+// that command does the writing, so its configuration keeps the format the
+// agent expects; Cursor has none, so its mcp.json is edited after a backup. An
+// agent that already has Sentinel is left as it is.
+func runAgents(ctx context.Context, args []string, env Env) int {
+	fs := flag.NewFlagSet("agents", flag.ContinueOnError)
+	dry := fs.Bool("dry-run", false, "say what would be added, and change nothing")
+	asJSON := fs.Bool("json", false, "print the result as JSON")
+	if code := parse(fs, args, env, "agents [--dry-run] [--json]"); code >= 0 {
+		return code
+	}
+	if fs.NArg() != 0 {
+		fmt.Fprintln(env.Stderr, "sentinel agents takes no arguments")
+		return ExitUsage
+	}
+	exe := env.Executable
+	if exe == "" {
+		exe = "sentinel"
+	}
+
+	results := []agentResult{
+		cliAgent(ctx, env, *dry, "Claude Code", "claude",
+			func() (bool, error) {
+				res, err := env.Runner.Run(ctx, execx.Command{Name: "claude", Args: []string{"mcp", "get", mcpServerName}})
+				return err == nil && res.ExitCode == 0, err
+			},
+			[]string{"mcp", "add", "--transport", "stdio", "--scope", "user", mcpServerName, "--", exe, "mcp"}),
+		cliAgent(ctx, env, *dry, "Codex", "codex",
+			func() (bool, error) {
+				return fileMentions(env, ".codex/config.toml", "[mcp_servers."+mcpServerName+"]")
+			},
+			[]string{"mcp", "add", mcpServerName, "--", exe, "mcp"}),
+		cliAgent(ctx, env, *dry, "Gemini CLI", "gemini",
+			func() (bool, error) { return jsonHasServer(env, ".gemini/settings.json") },
+			[]string{"mcp", "add", "--scope", "user", mcpServerName, exe, "mcp"}),
+		cursorAgent(env, *dry, exe),
+	}
+
+	failed := false
+	for _, r := range results {
+		failed = failed || r.Status == "failed"
+	}
+	code := ExitOK
+	if failed {
+		code = ExitFailed
+	}
+	if *asJSON {
+		if c := writeJSON(env, results); c != ExitOK {
+			return c
+		}
+		return code
+	}
+	labels := map[string]string{
+		"added": "added", "already": "already has Sentinel", "would_add": "would be added",
+		"not_installed": "not installed", "failed": "failed",
+	}
+	for _, r := range results {
+		line := fmt.Sprintf("%-12s %s", r.Agent, labels[r.Status])
+		if r.Detail != "" {
+			line += ": " + r.Detail
+		}
+		fmt.Fprintln(env.Stdout, line)
+	}
+	switch {
+	case *dry:
+		fmt.Fprintln(env.Stdout, "\nNothing was changed: this was a dry run.")
+	default:
+		fmt.Fprintln(env.Stdout, "\nRestart an agent that is open so it loads Sentinel.")
+	}
+	return code
+}
+
+// cliAgent adds Sentinel with the agent's own command.
+func cliAgent(ctx context.Context, env Env, dry bool, label, program string, has func() (bool, error), addArgs []string) agentResult {
+	if _, err := env.Runner.LookPath(program); err != nil {
+		return agentResult{Agent: label, Status: "not_installed"}
+	}
+	present, err := has()
+	if err != nil {
+		return agentResult{Agent: label, Status: "failed", Detail: err.Error()}
+	}
+	if present {
+		return agentResult{Agent: label, Status: "already"}
+	}
+	if dry {
+		return agentResult{Agent: label, Status: "would_add", Detail: program + " " + strings.Join(addArgs, " ")}
+	}
+	res, err := env.Runner.Run(ctx, execx.Command{Name: program, Args: addArgs})
+	if err != nil {
+		return agentResult{Agent: label, Status: "failed", Detail: err.Error()}
+	}
+	if res.ExitCode != 0 {
+		return agentResult{Agent: label, Status: "failed", Detail: firstLine(res.Stderr, res.Stdout)}
+	}
+	return agentResult{Agent: label, Status: "added"}
+}
+
+// cursorAgent edits ~/.cursor/mcp.json, the global file Cursor reads; Cursor
+// has no command to add a server. The file is copied aside first.
+func cursorAgent(env Env, dry bool, exe string) agentResult {
+	const label = "Cursor"
+	if env.HomeDir == "" {
+		return agentResult{Agent: label, Status: "not_installed"}
+	}
+	dir := filepath.Join(env.HomeDir, ".cursor")
+	if info, err := os.Stat(dir); err != nil || !info.IsDir() {
+		return agentResult{Agent: label, Status: "not_installed"}
+	}
+	path := filepath.Join(dir, "mcp.json")
+	doc := map[string]any{}
+	original, err := os.ReadFile(path)
+	switch {
+	case errors.Is(err, fs.ErrNotExist):
+		original = nil
+	case err != nil:
+		return agentResult{Agent: label, Status: "failed", Detail: err.Error()}
+	case len(bytes.TrimSpace(original)) > 0:
+		if err := json.Unmarshal(original, &doc); err != nil {
+			// Never rewrite a file we cannot read: the person's settings stay.
+			return agentResult{Agent: label, Status: "failed", Detail: path + " is not JSON; add Sentinel to it by hand"}
+		}
+	}
+	servers, _ := doc["mcpServers"].(map[string]any)
+	if servers == nil {
+		servers = map[string]any{}
+	}
+	if _, ok := servers[mcpServerName]; ok {
+		return agentResult{Agent: label, Status: "already"}
+	}
+	if dry {
+		return agentResult{Agent: label, Status: "would_add", Detail: "edit " + path}
+	}
+	servers[mcpServerName] = map[string]any{"type": "stdio", "command": exe, "args": []string{"mcp"}}
+	doc["mcpServers"] = servers
+	data, err := json.MarshalIndent(doc, "", "  ")
+	if err != nil {
+		return agentResult{Agent: label, Status: "failed", Detail: err.Error()}
+	}
+	mode := fs.FileMode(0o644)
+	if original != nil {
+		if info, err := os.Stat(path); err == nil {
+			mode = info.Mode().Perm()
+		}
+		backup := path + ".before-sentinel"
+		if err := os.WriteFile(backup, original, mode); err != nil {
+			return agentResult{Agent: label, Status: "failed", Detail: err.Error()}
+		}
+	}
+	if err := os.WriteFile(path, append(data, '\n'), mode); err != nil {
+		return agentResult{Agent: label, Status: "failed", Detail: err.Error()}
+	}
+	detail := ""
+	if original != nil {
+		detail = "the previous file is " + path + ".before-sentinel"
+	}
+	return agentResult{Agent: label, Status: "added", Detail: detail}
+}
+
+// fileMentions reports whether a file under the home folder holds a line.
+func fileMentions(env Env, rel, line string) (bool, error) {
+	if env.HomeDir == "" {
+		return false, nil
+	}
+	data, err := os.ReadFile(filepath.Join(env.HomeDir, filepath.FromSlash(rel)))
+	if errors.Is(err, fs.ErrNotExist) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	for _, l := range strings.Split(string(data), "\n") {
+		if strings.TrimSpace(l) == line {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+// jsonHasServer reports whether a JSON settings file under the home folder
+// already names Sentinel in mcpServers.
+func jsonHasServer(env Env, rel string) (bool, error) {
+	if env.HomeDir == "" {
+		return false, nil
+	}
+	data, err := os.ReadFile(filepath.Join(env.HomeDir, filepath.FromSlash(rel)))
+	if errors.Is(err, fs.ErrNotExist) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	var doc struct {
+		MCPServers map[string]json.RawMessage `json:"mcpServers"`
+	}
+	if json.Unmarshal(data, &doc) != nil {
+		return false, nil
+	}
+	_, ok := doc.MCPServers[mcpServerName]
+	return ok, nil
+}
+
+func firstLine(texts ...string) string {
+	for _, t := range texts {
+		if line := strings.TrimSpace(strings.SplitN(strings.TrimSpace(t), "\n", 2)[0]); line != "" {
+			return line
+		}
+	}
+	return "it ended with an error"
+}

@@ -17,14 +17,19 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	// Without a configuration folder there is simply no saved sign-in.
 	configDir, _ := os.UserConfigDir()
+	// Both only feed `sentinel agents`; without them it reads and writes no file.
+	homeDir, _ := os.UserHomeDir()
+	executable, _ := os.Executable()
 	code := cli.Run(ctx, os.Args[1:], cli.Env{
-		Stdin:     os.Stdin,
-		Stdout:    os.Stdout,
-		Stderr:    os.Stderr,
-		Runner:    execx.OS{},
-		Build:     buildinfo.Read(),
-		Getenv:    os.Getenv,
-		ConfigDir: configDir,
+		Stdin:      os.Stdin,
+		Stdout:     os.Stdout,
+		Stderr:     os.Stderr,
+		Runner:     execx.OS{},
+		Build:      buildinfo.Read(),
+		Getenv:     os.Getenv,
+		ConfigDir:  configDir,
+		HomeDir:    homeDir,
+		Executable: executable,
 	})
 	stop()
 	os.Exit(code)
