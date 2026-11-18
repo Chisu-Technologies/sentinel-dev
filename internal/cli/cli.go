@@ -86,6 +86,7 @@ Usage:
 Commands:
   cancel <run id>           Stop a run of a Sentinel server
   agents [--dry-run]        Add Sentinel to the coding agents on this machine
+  backup [--out <folder>]   Back up the data of Sentinel on this machine
   doctor [destination]      Check this machine, or a server before installing on it
   down                      Stop Sentinel on this machine; its data stays
   login [--url <address>]   Sign in to a Sentinel server, approving it in its panel
@@ -93,6 +94,7 @@ Commands:
   logout                    Forget the sign-in of sentinel login
   mcp                       Serve Sentinel's tools to a coding agent over MCP (stdio)
   pull <run id>             Fetch the pull request of a run into a local branch
+  restore --yes <backup>    Replace the data of Sentinel on this machine with a backup
   resume <run id>           Continue a run that paused at its budget
   run "<task>"              Send a task and this working tree to a Sentinel server
   runs                      List the runs of a Sentinel server
@@ -124,6 +126,10 @@ func Run(ctx context.Context, args []string, env Env) int {
 		return runAgents(ctx, rest, env)
 	case limitWarningCommand:
 		return runLimitWarning(rest, env)
+	case "backup":
+		return runBackup(ctx, rest, env)
+	case "restore":
+		return runRestore(ctx, rest, env)
 	case "cancel":
 		return runCancel(ctx, rest, env)
 	case "doctor":
