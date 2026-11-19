@@ -7,6 +7,8 @@ Notable changes are listed here, following
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-19
+
 ### Added
 
 - `sentinel models add <name> <address>` lets the Sentinel on this machine use a model served
