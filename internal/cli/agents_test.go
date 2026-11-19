@@ -18,11 +18,19 @@ const testExe = "/opt/sentinel/bin/sentinel"
 
 func agents(t *testing.T, runner *execxtest.Fake, home string, args ...string) (result, []agentResult) {
 	t.Helper()
+	return agentsWithEnv(t, runner, home, nil, args...)
+}
+
+// agentsWithEnv is agents with environment variables, for the Claude app,
+// whose folder Windows names in LOCALAPPDATA or APPDATA.
+func agentsWithEnv(t *testing.T, runner *execxtest.Fake, home string, vars map[string]string, args ...string) (result, []agentResult) {
+	t.Helper()
 	var stdout, stderr bytes.Buffer
 	code := Run(context.Background(), append([]string{"agents", "--json"}, args...), Env{
 		Stdout: &stdout, Stderr: &stderr, Runner: runner,
 		Build:   buildinfo.Info{Version: "v0.0.0-test"},
 		HomeDir: home, Executable: testExe,
+		Getenv: func(name string) string { return vars[name] },
 	})
 	var out []agentResult
 	if err := json.Unmarshal(stdout.Bytes(), &out); err != nil {
@@ -58,7 +66,7 @@ func TestAgentsAddsSentinelWithEachAgentsOwnCommand(t *testing.T) {
 	if res.code != ExitOK {
 		t.Fatalf("exit %d: %s", res.code, res.stderr)
 	}
-	want := map[string]string{"Claude Code": "added", "Codex": "added", "Gemini CLI": "added", "Cursor": "not_installed", "Claude Code limit warning": "added"}
+	want := map[string]string{"Claude Code": "added", "Codex": "added", "Gemini CLI": "added", "Cursor": "not_installed", "Claude app": "not_installed", "Claude Code limit warning": "added"}
 	if got := statusOf(out); !equalMaps(got, want) {
 		t.Errorf("status = %v, want %v", got, want)
 	}
@@ -83,7 +91,7 @@ func TestAgentsLeavesAnAgentThatAlreadyHasSentinel(t *testing.T) {
 
 	_, out := agents(t, runner, home)
 
-	want := map[string]string{"Claude Code": "already", "Codex": "already", "Gemini CLI": "already", "Cursor": "not_installed", "Claude Code limit warning": "already"}
+	want := map[string]string{"Claude Code": "already", "Codex": "already", "Gemini CLI": "already", "Cursor": "not_installed", "Claude app": "not_installed", "Claude Code limit warning": "already"}
 	if got := statusOf(out); !equalMaps(got, want) {
 		t.Errorf("status = %v, want %v", got, want)
 	}
@@ -198,4 +206,67 @@ func equalMaps(a, b map[string]string) bool {
 		}
 	}
 	return true
+}
+
+// Measured on 2026-11-19 on a Windows 11 PC with the Claude app from the
+// Microsoft Store: there is no %APPDATA%\Claude, and the app keeps its own
+// settings in %LOCALAPPDATA%\Claude-Data\<package>\claude_desktop_config.json.
+func TestAgentsAddsSentinelToTheClaudeAppFromTheStoreKeepingItsSettings(t *testing.T) {
+	home, local := t.TempDir(), t.TempDir()
+	config := filepath.Join(local, "Claude-Data", "claude_pzs8sxrjxfjjc", "claude_desktop_config.json")
+	original := `{"preferences":{"theme":"dark"},"coworkUserFilesPath":"C:/x"}`
+	write(t, config, original)
+	runner := &execxtest.Fake{Missing: map[string]bool{"claude": true, "codex": true, "gemini": true}}
+
+	res, out := agentsWithEnv(t, runner, home, map[string]string{"LOCALAPPDATA": local})
+
+	if res.code != ExitOK || statusOf(out)["Claude app"] != "added" {
+		t.Fatalf("exit %d, %v", res.code, out)
+	}
+	var doc map[string]any
+	data, _ := os.ReadFile(config)
+	if err := json.Unmarshal(data, &doc); err != nil {
+		t.Fatalf("the app's file is not JSON any more: %s", data)
+	}
+	if doc["preferences"] == nil || doc["coworkUserFilesPath"] != "C:/x" {
+		t.Errorf("the app's settings were lost: %s", data)
+	}
+	sentinel := doc["mcpServers"].(map[string]any)["sentinel"].(map[string]any)
+	if sentinel["command"] != testExe || sentinel["args"].([]any)[0] != "mcp" {
+		t.Errorf("sentinel entry = %v", sentinel)
+	}
+	if backup, _ := os.ReadFile(config + ".before-sentinel"); string(backup) != original {
+		t.Errorf("backup = %q, want the original file", backup)
+	}
+
+	// A second run leaves it as it is.
+	_, again := agentsWithEnv(t, runner, home, map[string]string{"LOCALAPPDATA": local})
+	if statusOf(again)["Claude app"] != "already" {
+		t.Errorf("second run: %v", again)
+	}
+}
+
+func TestAgentsFindsTheClaudeAppOfTheOtherWindowsInstallerAndOfMacOS(t *testing.T) {
+	runner := &execxtest.Fake{Missing: map[string]bool{"claude": true, "codex": true, "gemini": true}}
+
+	roaming := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(roaming, "Claude"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	_, out := agentsWithEnv(t, runner, t.TempDir(), map[string]string{"APPDATA": roaming})
+	if statusOf(out)["Claude app"] != "added" {
+		t.Errorf("APPDATA install: %v", out)
+	}
+	if _, err := os.Stat(filepath.Join(roaming, "Claude", "claude_desktop_config.json")); err != nil {
+		t.Errorf("no config written under APPDATA: %v", err)
+	}
+
+	home := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(home, "Library", "Application Support", "Claude"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	_, mac := agents(t, runner, home)
+	if statusOf(mac)["Claude app"] != "added" {
+		t.Errorf("macOS install: %v", mac)
+	}
 }

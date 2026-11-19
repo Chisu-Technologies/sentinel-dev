@@ -6,7 +6,7 @@
 
 | Command | What it does |
 | --- | --- |
-| `sentinel agents` | Add `sentinel mcp` to the coding agents on this machine (Claude Code, Codex, Gemini CLI, Cursor). In Claude Code it also adds a hook that, when Claude Code stops at its limit, shows a desktop notification suggesting `sentinel run --from-claude-code`. `--dry-run` says what it would add and changes nothing. |
+| `sentinel agents` | Add `sentinel mcp` to the coding agents on this machine (Claude Code, Codex, Gemini CLI, Cursor) and to the Claude desktop app. In Claude Code it also adds a hook that, when Claude Code stops at its limit, shows a desktop notification suggesting `sentinel run --from-claude-code`. `--dry-run` says what it would add and changes nothing. |
 | `sentinel cancel <run id>` | Stop a run of a Sentinel server. |
 | `sentinel down` | Stop Sentinel on this machine. Its data stays. |
 | `sentinel backup` | Back up the data of Sentinel on this machine: its three databases, each dump checked by a `SHA256SUMS`, in a new folder under the installation's `backups` (or `--out`). It works with Sentinel running or stopped and deletes no older backup. The master key stays in the installation's `.env`, which the backup does not carry; keep that file with it. |
@@ -221,7 +221,11 @@ claude mcp add --transport stdio sentinel -- sentinel mcp
 Or let `sentinel agents` add it to every agent it finds. Claude Code, Codex and
 Gemini CLI get it through their own `mcp add` command, so their settings keep the
 format they expect. Cursor has no such command: `~/.cursor/mcp.json` is edited, and
-the file it had is kept next to it as `mcp.json.before-sentinel`. An agent that
+the file it had is kept next to it as `mcp.json.before-sentinel`. The Claude desktop app has no such command either: its
+`claude_desktop_config.json` is edited the same way, in the folder the app uses
+(`%LOCALAPPDATA%\Claude-Data\<package>` for the app from the Microsoft Store,
+`%APPDATA%\Claude` for the other Windows installer, `~/Library/Application Support/Claude`
+on macOS). The app loads Sentinel when it starts again. An agent that
 already has Sentinel is left as it is, and a file that is not plain JSON is never
 rewritten. Restart an agent that is open so it loads Sentinel.
 

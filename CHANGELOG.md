@@ -7,6 +7,12 @@ Notable changes are listed here, following
 
 ## [Unreleased]
 
+### Added
+
+- `sentinel agents` also adds Sentinel to the Claude desktop app, by editing its
+  `claude_desktop_config.json` after a backup, as it does for Cursor. It finds the folder of the
+  app from the Microsoft Store, of the other Windows installer and of macOS.
+
 ## [0.5.0] - 2026-11-19
 
 ### Added
