@@ -14,6 +14,12 @@ Notable changes are listed here, following
   only for this machine or a private address. `sentinel models` lists them and
   `sentinel models remove <name>` removes one. It needs a Sentinel release with local models.
 
+### Changed
+
+- The server that `sentinel up` runs accepts models served on this machine, adds Groq,
+  Mistral AI, Cerebras, Together AI and DeepInfra as model providers, and lets you pick the
+  model of the second reviewer.
+
 ## [0.4.0] - 2026-11-18
 
 ### Changed
