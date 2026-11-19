@@ -67,6 +67,9 @@ type Env struct {
 	// ChatGPTAuthBase is OpenAI's authorization server for `login --chatgpt`.
 	// Empty means OpenAI's own; only a test sets another.
 	ChatGPTAuthBase string
+	// Terminal reports whether a person types the input, for `session`. Nil
+	// means Stdin is checked; only a test sets it.
+	Terminal func() bool
 }
 
 func (e Env) getenv(name string) string {
@@ -99,6 +102,7 @@ Commands:
   resume <run id>           Continue a run that paused at its budget
   run "<task>"              Send a task and this working tree to a Sentinel server
   runs                      List the runs of a Sentinel server
+  session [--mode <mode>]   Plan a change with the Architect, then run it (plan, edit, auto)
   setup <destination>       Run Sentinel on your server, over ssh
   stop --yes                Stop every run of a Sentinel server
   up                        Run Sentinel on this machine, with Docker
@@ -157,6 +161,8 @@ func Run(ctx context.Context, args []string, env Env) int {
 		return runRun(ctx, rest, env)
 	case "runs":
 		return runRuns(ctx, rest, env)
+	case "session":
+		return runSession(ctx, rest, env)
 	case "setup":
 		return runSetup(ctx, rest, env)
 	case "stop":
