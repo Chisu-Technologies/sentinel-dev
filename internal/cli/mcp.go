@@ -146,6 +146,37 @@ func mcpTools(env Env) []mcp.Tool {
 			},
 		},
 		{
+			Name:        "sentinel_list_repos",
+			Title:       "List repositories",
+			Description: "The repositories connected to Sentinel, and how far its Brain has read each one.",
+			InputSchema: object(map[string]any{}),
+			ReadOnly:    true,
+			Call: func(ctx context.Context, raw json.RawMessage) mcp.Result {
+				var a struct{}
+				if r, ok := mcpArgs(raw, &a); !ok {
+					return r
+				}
+				return mcpRepos(ctx, env)
+			},
+		},
+		{
+			Name:  "sentinel_brain",
+			Title: "What the Brain knows of a repository",
+			Description: "What Sentinel's Brain knows of one repository: the commit it read, its files with their headings, " +
+				"and the digest of what each part does. Read it before changing a repository you do not know well.",
+			InputSchema: object(map[string]any{"repo": str("The repository, as owner/name.")}, "repo"),
+			ReadOnly:    true,
+			Call: func(ctx context.Context, raw json.RawMessage) mcp.Result {
+				var a struct {
+					Repo string `json:"repo"`
+				}
+				if r, ok := mcpArgs(raw, &a); !ok {
+					return r
+				}
+				return mcpBrain(ctx, env, a.Repo)
+			},
+		},
+		{
 			Name:        "sentinel_stop_run",
 			Title:       "Stop a run",
 			Description: "Stop one run that has not ended. A run that already ended is left as it is.",

@@ -7,6 +7,12 @@ Notable changes are listed here, following
 
 ## [Unreleased]
 
+### Added
+
+- `sentinel mcp` has two more tools, `sentinel_list_repos` and `sentinel_brain`, so the agent can
+  ask which repositories Sentinel has and what its Brain knows of one. They need a Sentinel
+  that lets the key of `sentinel login` read them.
+
 ## [0.5.0] - 2026-11-19
 
 ### Added
