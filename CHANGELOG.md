@@ -7,6 +7,11 @@ Notable changes are listed here, following
 
 ## [Unreleased]
 
+### Added
+
+- [INSTALL.md](INSTALL.md): the steps an AI agent follows when someone gives it this repository
+  and asks it to install Sentinel; the README and AGENTS.md point to it.
+
 ## [0.5.0] - 2026-11-19
 
 ### Added

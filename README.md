@@ -9,6 +9,11 @@ English · [Español](README.es.md)
 **Hand a task to an agent on your own server. Get back a pull request that a separate
 QA tested before it was opened.**
 
+> **Let your agent install it.** Tell Claude Code, Codex, the Claude or ChatGPT app or
+> Cursor: *"Install Sentinel on this computer from
+> https://github.com/Chisu-Technologies/sentinel-dev, following its INSTALL.md."*
+> [INSTALL.md](INSTALL.md) has the steps it follows.
+
 Sentinel runs coding agents on a machine you control. Each task runs in a sandbox that
 never holds your keys. A second agent, which did not write the change, tests it. The
 result is a pull request for you to review; the agent cannot merge.
