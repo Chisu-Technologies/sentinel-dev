@@ -7,6 +7,12 @@ Notable changes are listed here, following
 
 ## [Unreleased]
 
+### Added
+
+- A Claude Code plugin, `sentinel@chisu-sentinel`, in this repository's marketplace: the
+  `sentinel mcp` server and three skills (`verify`, `verify-pr`, `runs`) that tell Claude Code
+  when to send a change to Sentinel and how to follow it until its pull request.
+
 ## [0.5.0] - 2026-11-19
 
 ### Added

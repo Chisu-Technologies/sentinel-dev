@@ -1,0 +1,9 @@
+{
+  "name": "sentinel",
+  "description": "Send your change to the Sentinel on this machine, which runs the tests in its sandbox, has a QA and reviewers check it, and opens a pull request it never merges.",
+  "author": {
+    "name": "Chisu Technologies"
+  },
+  "homepage": "https://github.com/Chisu-Technologies/sentinel-dev",
+  "license": "Apache-2.0"
+}

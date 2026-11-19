@@ -1,0 +1,14 @@
+{
+  "name": "chisu-sentinel",
+  "description": "Sentinel for Claude Code: your agent writes, Sentinel verifies in its sandbox and signs.",
+  "owner": {
+    "name": "Chisu Technologies"
+  },
+  "plugins": [
+    {
+      "name": "sentinel",
+      "source": "./plugin",
+      "description": "Send your change to the Sentinel on this machine, which runs the tests in its sandbox, has a QA and reviewers check it, and opens a pull request it never merges."
+    }
+  ]
+}
