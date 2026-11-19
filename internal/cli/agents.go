@@ -53,11 +53,7 @@ func runAgents(ctx context.Context, args []string, env Env) int {
 				return err == nil && res.ExitCode == 0, err
 			},
 			[]string{"mcp", "add", "--transport", "stdio", "--scope", "user", mcpServerName, "--", exe, "mcp"}),
-		cliAgent(ctx, env, *dry, "Codex", "codex",
-			func() (bool, error) {
-				return fileMentions(env, ".codex/config.toml", "[mcp_servers."+mcpServerName+"]")
-			},
-			[]string{"mcp", "add", mcpServerName, "--", exe, "mcp"}),
+		codexAgent(ctx, env, *dry, exe),
 		cliAgent(ctx, env, *dry, "Gemini CLI", "gemini",
 			func() (bool, error) { return jsonHasServer(env, ".gemini/settings.json") },
 			[]string{"mcp", "add", "--scope", "user", mcpServerName, exe, "mcp"}),
@@ -123,6 +119,70 @@ func cliAgent(ctx context.Context, env Env, dry bool, label, program string, has
 		return agentResult{Agent: label, Status: "failed", Detail: firstLine(res.Stderr, res.Stdout)}
 	}
 	return agentResult{Agent: label, Status: "added"}
+}
+
+// codexAgent adds Sentinel to Codex. With the codex command, that command
+// does it. The Codex and ChatGPT desktop apps bring no command but read the
+// same ~/.codex/config.toml as the CLI (OpenAI: "The ChatGPT desktop app, Codex
+// CLI, and IDE extension share this configuration"), so then the file gets
+// Sentinel's table appended, after a backup, and nothing else in it changes.
+func codexAgent(ctx context.Context, env Env, dry bool, exe string) agentResult {
+	const label = "Codex"
+	has := func() (bool, error) {
+		return fileMentions(env, ".codex/config.toml", "[mcp_servers."+mcpServerName+"]")
+	}
+	if _, err := env.Runner.LookPath("codex"); err == nil {
+		return cliAgent(ctx, env, dry, label, "codex", has, []string{"mcp", "add", mcpServerName, "--", exe, "mcp"})
+	}
+	if env.HomeDir == "" {
+		return agentResult{Agent: label, Status: "not_installed"}
+	}
+	path := filepath.Join(env.HomeDir, ".codex", "config.toml")
+	info, err := os.Stat(path)
+	if err != nil {
+		return agentResult{Agent: label, Status: "not_installed"}
+	}
+	present, err := has()
+	if err != nil {
+		return agentResult{Agent: label, Status: "failed", Detail: err.Error()}
+	}
+	if present {
+		return agentResult{Agent: label, Status: "already"}
+	}
+	if dry {
+		return agentResult{Agent: label, Status: "would_add", Detail: "edit " + path}
+	}
+	original, err := os.ReadFile(path)
+	if err != nil {
+		return agentResult{Agent: label, Status: "failed", Detail: err.Error()}
+	}
+	mode := info.Mode().Perm()
+	if err := os.WriteFile(path+".before-sentinel", original, mode); err != nil {
+		return agentResult{Agent: label, Status: "failed", Detail: err.Error()}
+	}
+	table := "[mcp_servers." + mcpServerName + "]\ncommand = " + tomlString(exe) + "\nargs = [\"mcp\"]\n"
+	sep := "\n"
+	if len(original) == 0 {
+		sep = ""
+	} else if !bytes.HasSuffix(original, []byte("\n")) {
+		sep = "\n\n"
+	}
+	if err := os.WriteFile(path, append(original, []byte(sep+table)...), mode); err != nil {
+		return agentResult{Agent: label, Status: "failed", Detail: err.Error()}
+	}
+	return agentResult{Agent: label, Status: "added", Detail: "the previous file is " + path + ".before-sentinel"}
+}
+
+// tomlString writes a TOML string. A literal string keeps a Windows path's
+// backslashes as they are, the way the Codex app writes its own paths; one
+// that a literal string cannot hold is written as a basic string, whose
+// escapes are JSON's.
+func tomlString(s string) string {
+	if !strings.ContainsAny(s, "'\r\n") {
+		return "'" + s + "'"
+	}
+	quoted, _ := json.Marshal(s)
+	return string(quoted)
 }
 
 // cursorAgent edits ~/.cursor/mcp.json, the global file Cursor reads; Cursor

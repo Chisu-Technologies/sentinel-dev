@@ -208,6 +208,48 @@ func equalMaps(a, b map[string]string) bool {
 	return true
 }
 
+// Measured on 2026-11-19 on a Windows 11 PC with the Codex desktop app and no
+// codex command: ~/.codex/config.toml held the app's own MCP server, written
+// with literal strings for its Windows paths.
+func TestAgentsAddsSentinelToTheCodexAppWithoutItsCommand(t *testing.T) {
+	home := t.TempDir()
+	config := filepath.Join(home, ".codex", "config.toml")
+	original := "model = \"gpt-5\"\n\n[mcp_servers.node_repl]\ncommand = 'C:\\Codex\\node_repl.exe'\n"
+	write(t, config, original)
+	runner := &execxtest.Fake{Missing: map[string]bool{"claude": true, "codex": true, "gemini": true}}
+
+	res, out := agents(t, runner, home)
+
+	if res.code != ExitOK || statusOf(out)["Codex"] != "added" {
+		t.Fatalf("exit %d, %v", res.code, out)
+	}
+	data, _ := os.ReadFile(config)
+	want := original + "\n[mcp_servers.sentinel]\ncommand = '" + testExe + "'\nargs = [\"mcp\"]\n"
+	if string(data) != want {
+		t.Errorf("config.toml =\n%s\nwant\n%s", data, want)
+	}
+	if backup, _ := os.ReadFile(config + ".before-sentinel"); string(backup) != original {
+		t.Errorf("backup = %q, want the original file", backup)
+	}
+	if _, again := agents(t, runner, home); statusOf(again)["Codex"] != "already" {
+		t.Errorf("second run: %v", again)
+	}
+	for _, call := range lines(runner.Calls) {
+		if strings.HasPrefix(call, "codex ") {
+			t.Errorf("there is no codex command, but ran %q", call)
+		}
+	}
+}
+
+func TestTomlStringKeepsAWindowsPathAndEscapesWhatALiteralCannotHold(t *testing.T) {
+	if got := tomlString(`C:\Users\a b\sentinel.exe`); got != `'C:\Users\a b\sentinel.exe'` {
+		t.Errorf("literal = %s", got)
+	}
+	if got := tomlString(`C:\it's\sentinel.exe`); got != `"C:\\it's\\sentinel.exe"` {
+		t.Errorf("basic = %s", got)
+	}
+}
+
 // Measured on 2026-11-19 on a Windows 11 PC with the Claude app from the
 // Microsoft Store: there is no %APPDATA%\Claude, and the app keeps its own
 // settings in %LOCALAPPDATA%\Claude-Data\<package>\claude_desktop_config.json.

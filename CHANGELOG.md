@@ -12,6 +12,8 @@ Notable changes are listed here, following
 - `sentinel agents` also adds Sentinel to the Claude desktop app, by editing its
   `claude_desktop_config.json` after a backup, as it does for Cursor. It finds the folder of the
   app from the Microsoft Store, of the other Windows installer and of macOS.
+- `sentinel agents` also adds Sentinel to Codex when only the Codex or ChatGPT desktop app is
+  installed, with no `codex` command: those apps read the same `~/.codex/config.toml`.
 
 ## [0.5.0] - 2026-11-19
 
