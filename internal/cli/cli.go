@@ -93,6 +93,7 @@ Commands:
   login --chatgpt           Let your Sentinel use your ChatGPT plan
   logout                    Forget the sign-in of sentinel login
   mcp                       Serve Sentinel's tools to a coding agent over MCP (stdio)
+  models add <name> <url>   Let Sentinel on this machine use a model served here (Ollama, LM Studio)
   pull <run id>             Fetch the pull request of a run into a local branch
   restore --yes <backup>    Replace the data of Sentinel on this machine with a backup
   resume <run id>           Continue a run that paused at its budget
@@ -130,6 +131,8 @@ func Run(ctx context.Context, args []string, env Env) int {
 		return runBackup(ctx, rest, env)
 	case "restore":
 		return runRestore(ctx, rest, env)
+	case "models":
+		return runModels(ctx, rest, env)
 	case "cancel":
 		return runCancel(ctx, rest, env)
 	case "doctor":
