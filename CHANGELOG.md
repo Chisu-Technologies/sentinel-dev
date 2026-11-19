@@ -13,12 +13,16 @@ Notable changes are listed here, following
   here (Ollama, LM Studio, vLLM). `localhost` becomes `host.docker.internal`; plain HTTP is
   only for this machine or a private address. `sentinel models` lists them and
   `sentinel models remove <name>` removes one. It needs a Sentinel release with local models.
+- `sentinel session` plans a change with the Architect of a Sentinel server in the
+  terminal, then runs it as the mode says: `plan` (the default) runs nothing, `edit`
+  asks before each task, `auto` runs every task. It needs a server that lets the
+  sign-in of `sentinel login` talk to the Architect.
 
 ### Changed
 
 - The server that `sentinel up` runs accepts models served on this machine, adds Groq,
-  Mistral AI, Cerebras, Together AI and DeepInfra as model providers, and lets you pick the
-  model of the second reviewer.
+  Mistral AI, Cerebras, Together AI and DeepInfra as model providers, lets you pick the
+  model of the second reviewer, and lets `sentinel session` talk to its Architect.
 
 ## [0.4.0] - 2026-11-18
 
