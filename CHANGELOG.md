@@ -7,6 +7,15 @@ Notable changes are listed here, following
 
 ## [Unreleased]
 
+### Added
+
+- Your own MCP servers: in Settings > External tools, the Sentinel that `sentinel up` runs
+  takes any MCP server (on this machine, on your network or on the internet) and gives its
+  tools to the agents a task's contract allows. Tools that may change data start off.
+  Composio Connect works as one of them. See [docs/mcp-servers.md](docs/mcp-servers.md).
+- `sentinel up` writes the key that signs each run's access to those tools, and adds it
+  to an installation made before.
+
 ## [0.5.0] - 2026-11-19
 
 ### Added

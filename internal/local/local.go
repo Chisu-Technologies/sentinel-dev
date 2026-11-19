@@ -38,7 +38,7 @@ const (
 	waitTimeoutSec = "900"
 )
 
-// The six secrets of an installation, and how each is made.
+// The secrets of an installation, and how each is made.
 var secrets = []struct {
 	name string
 	make func(io.Reader) (string, error)
@@ -48,6 +48,7 @@ var secrets = []struct {
 	{"SENTINEL_ADMIN_KEY", token(32)},
 	{"SENTINEL_ARCHITECT_HMAC_KEY", token(48)},
 	{signingKeySetting, signingKey},
+	{toolBrokerKeySetting, token(32)},
 }
 
 var emailPattern = regexp.MustCompile(`^[^@\s]{1,64}@[^@\s]{1,255}$`)
@@ -187,6 +188,13 @@ func (i *Install) Up(ctx context.Context, email string, signIn bool) (Result, er
 		return result, fmt.Errorf("checking the receipt signing key: %w", err)
 	} else if repaired {
 		i.say("Replaced the receipt signing key: the one this installation had could not sign. Receipts from now on are signed.")
+	}
+	if !created {
+		if added, err := i.addToolBrokerKey(); err != nil {
+			return result, fmt.Errorf("checking the tool broker key: %w", err)
+		} else if added {
+			i.say("Added the key that lets agents reach the MCP servers you add in Settings > External tools.")
+		}
 	}
 	// Read again on every run, so a new `gh auth login` reaches Sentinel.
 	if err := i.setEnv(GitHubTokenSetting, githubToken); err != nil {
@@ -496,6 +504,35 @@ func (i *Install) repairSigningKey() (bool, error) {
 		return false, err
 	}
 	return true, i.setEnv(signingKeySetting, key)
+}
+
+// toolBrokerKeySetting signs the capability each run gets to reach the API's
+// tool broker, which calls the MCP servers an admin adds. Installations made
+// before 0.6.0 have none, and without it agents get no external tools.
+const toolBrokerKeySetting = "SENTINEL_TOOL_BROKER_SIGNING_KEY"
+
+// addToolBrokerKey writes the tool broker key when the installation has none.
+// A key that is there is never replaced: the capabilities of runs in progress
+// are signed with it. It reports whether it wrote one.
+func (i *Install) addToolBrokerKey() (bool, error) {
+	data, err := os.ReadFile(filepath.Join(i.Dir, envFile))
+	if err != nil {
+		return false, err
+	}
+	for _, line := range strings.Split(string(data), "\n") {
+		if value, ok := strings.CutPrefix(strings.TrimRight(line, "\r"), toolBrokerKeySetting+"="); ok && strings.TrimSpace(value) != "" {
+			return false, nil
+		}
+	}
+	source := i.Rand
+	if source == nil {
+		source = rand.Reader
+	}
+	key, err := token(32)(source)
+	if err != nil {
+		return false, err
+	}
+	return true, i.setEnv(toolBrokerKeySetting, key)
 }
 
 // fernetKey is 32 random bytes in padded URL-safe base64, the form the server's
