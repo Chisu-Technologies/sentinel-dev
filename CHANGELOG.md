@@ -7,6 +7,14 @@ Notable changes are listed here, following
 
 ## [Unreleased]
 
+### Added
+
+- Live View on this machine: the Sentinel that `sentinel up` runs starts a repository's
+  app in an isolated container and opens it in a tab of its own, at
+  `http://lv-<name>.localhost:<port>`. `sentinel up` chooses a free port from 8421, keeps it
+  as `SENTINEL_LIVE_VIEW_PORT` and says it. The app reaches the internet, never this
+  machine, Sentinel or your network.
+
 ## [0.7.2] - 2026-11-20
 
 ### Changed
