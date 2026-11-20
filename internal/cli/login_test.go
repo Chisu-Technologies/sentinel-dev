@@ -141,6 +141,44 @@ func TestLoginThatIsDeniedSavesNothing(t *testing.T) {
 	}
 }
 
+// The panel's setup guide says "run sentinel login": with no address and a
+// Sentinel that `up` installed here, that is the server it signs in to.
+func TestLoginWithoutAnAddressSignsInToTheSentinelOnThisMachine(t *testing.T) {
+	l := newLoginServer(t, 0, "")
+	home := t.TempDir()
+	if err := os.WriteFile(filepath.Join(home, ".env"), []byte("x"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	dir := t.TempDir()
+	var stdout, stderr bytes.Buffer
+	code := Run(context.Background(), []string{"login"}, Env{
+		Stdout: &stdout, Stderr: &stderr, Runner: &execxtest.Fake{},
+		Build:         buildinfo.Info{Version: "v0.7.1", OS: "windows", Arch: "amd64"},
+		Getenv:        func(name string) string { return map[string]string{"SENTINEL_HOME": home}[name] },
+		Sleep:         func(ctx context.Context, _ time.Duration) error { return ctx.Err() },
+		ConfigDir:     dir,
+		LocalPanelURL: l.URL,
+	})
+	if code != ExitOK {
+		t.Fatalf("exit %d; stdout %s; stderr %s", code, stdout.String(), stderr.String())
+	}
+	if !strings.Contains(stdout.String(), "Signing in to the Sentinel on this machine ("+l.URL+")") {
+		t.Errorf("stdout = %s", stdout.String())
+	}
+	data, err := os.ReadFile(filepath.Join(dir, "sentinel", "credentials.json"))
+	var saved credentials
+	if err != nil || json.Unmarshal(data, &saved) != nil || saved.URL != l.URL || saved.APIKey != loginKey {
+		t.Errorf("saved %s (%v)", data, err)
+	}
+}
+
+func TestLoginWithoutAnAddressOrALocalSentinelSaysWhatItNeeds(t *testing.T) {
+	got := loginCommand(t, t.TempDir(), map[string]string{"SENTINEL_HOME": t.TempDir()}, "login")
+	if got.code != ExitUsage || !strings.Contains(got.stderr, "sentinel login --url") {
+		t.Errorf("got %+v", got)
+	}
+}
+
 func TestLoginRefusesAPlainHTTPServerThatIsNotLocal(t *testing.T) {
 	got := loginCommand(t, t.TempDir(), nil, "login", "--url", "http://sentinel.example.com")
 	if got.code != ExitUsage || !strings.Contains(got.stderr, "https") {
