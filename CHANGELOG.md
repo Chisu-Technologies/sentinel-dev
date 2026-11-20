@@ -37,6 +37,9 @@ Notable changes are listed here, following
   installed Sentinel here, it signs in to that one first, approved in its panel, then
   continues with ChatGPT.
 - `sentinel login --url` opens the approval page in the browser too.
+- The server that `sentinel up` runs gives agents the MCP servers you add in Settings >
+  External tools, lets the key of `sentinel login` read your repositories and the Brain, and
+  carries containerd with the fix for CVE-2026-95839.
 
 ### Fixed
 
