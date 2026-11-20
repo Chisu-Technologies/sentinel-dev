@@ -7,6 +7,12 @@ Notable changes are listed here, following
 
 ## [Unreleased]
 
+### Changed
+
+- `sentinel update` checks who built the release as the installers do: with `gh` signed in,
+  GitHub's attestation of the archive, before cosign. When the check fails, nothing is
+  changed. Before, it only used cosign and said the signature was not checked without it.
+
 ## [0.7.1] - 2026-11-20
 
 ### Fixed

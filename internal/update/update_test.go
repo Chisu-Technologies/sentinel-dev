@@ -84,7 +84,8 @@ func linuxOptions(path string, runner execx.Runner) Options {
 	return Options{GOOS: "linux", GOARCH: "amd64", Executable: path, Runner: runner}
 }
 
-var noCosign = &execxtest.Fake{Missing: map[string]bool{"cosign": true}}
+// nothingToCheck has neither gh nor cosign: only the checksum is checked.
+var nothingToCheck = &execxtest.Fake{Missing: map[string]bool{"cosign": true, "gh": true}}
 
 func TestNewerComparesReleaseVersionsOnly(t *testing.T) {
 	cases := []struct {
@@ -122,7 +123,7 @@ func TestInstallReplacesTheBinaryWhenTheChecksumMatches(t *testing.T) {
 	})
 	path := installed(t)
 
-	result, err := src.Install(context.Background(), "v0.3.3", linuxOptions(path, noCosign))
+	result, err := src.Install(context.Background(), "v0.3.3", linuxOptions(path, nothingToCheck))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -130,7 +131,7 @@ func TestInstallReplacesTheBinaryWhenTheChecksumMatches(t *testing.T) {
 		t.Errorf("binary = %q", got)
 	}
 	if result.SignatureChecked {
-		t.Error("claimed a signature check without cosign")
+		t.Error("claimed a signature check without gh or cosign")
 	}
 }
 
@@ -143,7 +144,7 @@ func TestInstallOnWindowsReadsTheZip(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "sentinel.exe")
 	os.WriteFile(path, []byte("old exe"), 0o755)
 
-	_, err := src.Install(context.Background(), "v0.3.3", Options{GOOS: "windows", GOARCH: "amd64", Executable: path, Runner: noCosign})
+	_, err := src.Install(context.Background(), "v0.3.3", Options{GOOS: "windows", GOARCH: "amd64", Executable: path, Runner: nothingToCheck})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -160,7 +161,7 @@ func TestInstallKeepsTheOldBinaryWhenTheChecksumDiffers(t *testing.T) {
 	})
 	path := installed(t)
 
-	_, err := src.Install(context.Background(), "v0.3.3", linuxOptions(path, noCosign))
+	_, err := src.Install(context.Background(), "v0.3.3", linuxOptions(path, nothingToCheck))
 	if err == nil || !strings.Contains(err.Error(), "does not match") {
 		t.Fatalf("err = %v", err)
 	}
@@ -177,7 +178,8 @@ func TestInstallChecksTheSignatureWhenCosignIsInstalled(t *testing.T) {
 		"SHA256SUMS.sigstore.json":    []byte(`{}`),
 	}
 
-	valid := &execxtest.Fake{}
+	// Without gh, the way the installers fall back.
+	valid := &execxtest.Fake{Missing: map[string]bool{"gh": true}}
 	result, err := release(t, "v0.3.3", files).Install(context.Background(), "v0.3.3", linuxOptions(installed(t), valid))
 	if err != nil || !result.SignatureChecked {
 		t.Fatalf("result %+v, err %v", result, err)
@@ -187,7 +189,7 @@ func TestInstallChecksTheSignatureWhenCosignIsInstalled(t *testing.T) {
 		t.Errorf("cosign ran as %s %s", valid.Calls[0].Name, args)
 	}
 
-	invalid := &execxtest.Fake{Results: map[string]execx.Result{"cosign": {ExitCode: 1}}}
+	invalid := &execxtest.Fake{Missing: map[string]bool{"gh": true}, Results: map[string]execx.Result{"cosign": {ExitCode: 1}}}
 	path := installed(t)
 	_, err = release(t, "v0.3.3", files).Install(context.Background(), "v0.3.3", linuxOptions(path, invalid))
 	if err == nil || !strings.Contains(err.Error(), "signature") {
@@ -205,7 +207,7 @@ func TestInstallRequiringASignatureStopsWithoutCosign(t *testing.T) {
 		"SHA256SUMS":                  []byte(sumOf(archive) + "  sentinel_linux_amd64.tar.gz\n"),
 	})
 	path := installed(t)
-	opts := linuxOptions(path, noCosign)
+	opts := linuxOptions(path, nothingToCheck)
 	opts.RequireSignature = true
 
 	_, err := src.Install(context.Background(), "v0.3.3", opts)
@@ -225,11 +227,80 @@ func TestInstallTakesOnlyARegularFileNamedLikeTheBinary(t *testing.T) {
 	})
 	path := installed(t)
 
-	_, err := src.Install(context.Background(), "v0.3.3", linuxOptions(path, noCosign))
+	_, err := src.Install(context.Background(), "v0.3.3", linuxOptions(path, nothingToCheck))
 	if err == nil || !strings.Contains(err.Error(), "has no sentinel") {
 		t.Fatalf("err = %v", err)
 	}
 	if got, _ := os.ReadFile(path); string(got) != "old binary" {
 		t.Errorf("binary = %q", got)
+	}
+}
+
+func signedRelease(t *testing.T) Source {
+	t.Helper()
+	archive := tarGz(t, "sentinel", []byte("new binary"), tar.TypeReg)
+	return release(t, "v0.3.3", map[string][]byte{
+		"sentinel_linux_amd64.tar.gz": archive,
+		"SHA256SUMS":                  []byte(sumOf(archive) + "  sentinel_linux_amd64.tar.gz\n"),
+		"SHA256SUMS.sigstore.json":    []byte(`{}`),
+	})
+}
+
+// The installers ask GitHub first, through the gh that Sentinel already needs;
+// the update checks the same way, before cosign.
+func TestInstallChecksGitHubsAttestationWithASignedInGh(t *testing.T) {
+	gh := &execxtest.Fake{}
+	path := installed(t)
+	result, err := signedRelease(t).Install(context.Background(), "v0.3.3", linuxOptions(path, gh))
+	if err != nil || !result.SignatureChecked || result.CheckedBy != "GitHub" {
+		t.Fatalf("result %+v, err %v", result, err)
+	}
+	if got, _ := os.ReadFile(path); string(got) != "new binary" {
+		t.Errorf("binary = %q", got)
+	}
+	if len(gh.Calls) != 2 || strings.Join(gh.Calls[0].Args, " ") != "auth status" {
+		t.Fatalf("calls %+v", gh.Calls)
+	}
+	verify := gh.Calls[1]
+	args := strings.Join(verify.Args, " ")
+	want := " --repo " + Repo + " --cert-identity-regex " + signerPattern + " --cert-oidc-issuer " + signerIssuer + " --deny-self-hosted-runners"
+	if verify.Name != "gh" || !strings.HasPrefix(args, "attestation verify ") || !strings.HasSuffix(args, want) ||
+		filepath.Base(verify.Args[2]) != "sentinel_linux_amd64.tar.gz" {
+		t.Errorf("gh ran as %s %s", verify.Name, args)
+	}
+}
+
+func TestInstallKeepsTheOldBinaryWhenGitHubHasNoValidAttestation(t *testing.T) {
+	gh := &execxtest.Fake{Results: map[string]execx.Result{"gh auth status": {}, "gh": {ExitCode: 1}}}
+	path := installed(t)
+	_, err := signedRelease(t).Install(context.Background(), "v0.3.3", linuxOptions(path, gh))
+	if err == nil || !strings.Contains(err.Error(), "no valid attestation") || !strings.Contains(err.Error(), "Nothing was changed") {
+		t.Fatalf("err = %v", err)
+	}
+	if got, _ := os.ReadFile(path); string(got) != "old binary" {
+		t.Errorf("binary = %q", got)
+	}
+}
+
+// A gh without a session answers nothing: it is not asked, and the update goes on
+// as when there is no gh.
+func TestInstallDoesNotAskAGhThatIsNotSignedIn(t *testing.T) {
+	gh := &execxtest.Fake{Missing: map[string]bool{"cosign": true}, Results: map[string]execx.Result{"gh auth status": {ExitCode: 1}}}
+	result, err := signedRelease(t).Install(context.Background(), "v0.3.3", linuxOptions(installed(t), gh))
+	if err != nil || result.SignatureChecked {
+		t.Fatalf("result %+v, err %v", result, err)
+	}
+	for _, call := range gh.Calls {
+		if len(call.Args) > 0 && call.Args[0] == "attestation" {
+			t.Errorf("asked a gh that is not signed in: %v", call.Args)
+		}
+	}
+}
+
+func TestInstallRequiringASignatureAcceptsASignedInGh(t *testing.T) {
+	opts := linuxOptions(installed(t), &execxtest.Fake{Missing: map[string]bool{"cosign": true}})
+	opts.RequireSignature = true
+	if result, err := signedRelease(t).Install(context.Background(), "v0.3.3", opts); err != nil || result.CheckedBy != "GitHub" {
+		t.Fatalf("result %+v, err %v", result, err)
 	}
 }
