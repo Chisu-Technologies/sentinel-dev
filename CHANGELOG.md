@@ -19,6 +19,9 @@ Notable changes are listed here, following
   when to send a change to Sentinel and how to follow it until its pull request.
 - [INSTALL.md](INSTALL.md): the steps an AI agent follows when someone gives it this repository
   and asks it to install Sentinel; the README and AGENTS.md point to it.
+- `sentinel mcp` has two more tools, `sentinel_list_repos` and `sentinel_brain`, so the agent can
+  ask which repositories Sentinel has and what its Brain knows of one. They need a Sentinel
+  that lets the key of `sentinel login` read them.
 
 ## [0.5.0] - 2026-11-19
 

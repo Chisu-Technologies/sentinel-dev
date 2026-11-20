@@ -83,7 +83,7 @@ func TestMCPHandshakeListsTheToolsAndAnswersOnlyRequests(t *testing.T) {
 	for _, tool := range answers["2"]["result"].(map[string]any)["tools"].([]any) {
 		names = append(names, tool.(map[string]any)["name"].(string))
 	}
-	want := "sentinel_verify_pull_request sentinel_run_task sentinel_run_status sentinel_list_runs sentinel_stop_run"
+	want := "sentinel_verify_pull_request sentinel_run_task sentinel_run_status sentinel_list_runs sentinel_list_repos sentinel_brain sentinel_stop_run"
 	if strings.Join(names, " ") != want {
 		t.Errorf("tools = %v, want %s", names, want)
 	}
@@ -176,6 +176,91 @@ func TestMCPRunStatusGivesTheRunAndItsVerdict(t *testing.T) {
 	s := status.Stories[0]
 	if s.Verdict != "APPROVED" || s.TestsPassed == nil || *s.TestsPassed != 41 || s.PullRequest == nil {
 		t.Errorf("story = %+v", s)
+	}
+}
+
+// brainServer answers like a Sentinel with two repositories: acme/widgets,
+// which the Brain read, and acme/empty, which it has not read yet.
+func brainServer(t *testing.T) (map[string]string, func() []string) {
+	t.Helper()
+	var mu sync.Mutex
+	var seen []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		seen = append(seen, r.Method+" "+r.URL.RequestURI())
+		mu.Unlock()
+		switch r.URL.Path {
+		case "/api/org/repos":
+			io.WriteString(w, `[{"id":"r1","full_name":"acme/widgets","context_status":"ready","context_version":3,"digest_status":"ready"},
+				{"id":"r2","full_name":"acme/empty","context_status":"none","digest_status":"none"}]`)
+		case "/api/org/repos/r1/context":
+			artifact, _ := json.Marshal(map[string]any{
+				"commit_sha": "abc123",
+				"index": map[string]any{"artifacts": []any{
+					map[string]any{"path": "README.md", "kind": "markdown", "headings": []string{"Widgets", "Install"}},
+					map[string]any{"path": "src/widgets/core.py", "kind": "python"},
+				}},
+				"digest": map[string]any{"src/widgets": "Builds and renders widgets."},
+			})
+			json.NewEncoder(w).Encode(map[string]any{"repo": "acme/widgets", "status": "ready", "version": 3,
+				"commit_sha": "abc123", "built_at": "2026-11-19T10:00:00Z", "artifact_json": string(artifact)})
+		case "/api/org/repos/r2/context":
+			w.WriteHeader(http.StatusNotFound)
+			io.WriteString(w, `{"detail":"no context artifact"}`)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(srv.Close)
+	return map[string]string{"SENTINEL_URL": srv.URL, "SENTINEL_API_KEY": verifyKey}, func() []string {
+		mu.Lock()
+		defer mu.Unlock()
+		return append([]string(nil), seen...)
+	}
+}
+
+func TestMCPListsTheRepositoriesAndWhatTheBrainKnowsOfOne(t *testing.T) {
+	vars, seen := brainServer(t)
+	answers, _ := mcpSession(t, vars,
+		call(1, "sentinel_list_repos", `{}`),
+		call(2, "sentinel_brain", `{"repo":"ACME/widgets"}`),
+		call(3, "sentinel_brain", `{"repo":"acme/empty"}`),
+		call(4, "sentinel_brain", `{"repo":"acme/missing"}`),
+	)
+
+	repos, isError := toolText(t, answers["1"])
+	if isError || !strings.Contains(repos, `"repo": "acme/widgets"`) || !strings.Contains(repos, `"brain": "ready"`) {
+		t.Errorf("repositories = %s (isError=%v)", repos, isError)
+	}
+	brain, isError := toolText(t, answers["2"])
+	var got struct {
+		Repo   string `json:"repo"`
+		Commit string `json:"commit_sha"`
+		Files  []struct {
+			Path     string   `json:"path"`
+			Headings []string `json:"headings"`
+		} `json:"files"`
+		FilesTotal int               `json:"files_total"`
+		Digest     map[string]string `json:"digest"`
+	}
+	if err := json.Unmarshal([]byte(brain), &got); isError || err != nil {
+		t.Fatalf("brain = %s (isError=%v, %v)", brain, isError, err)
+	}
+	if got.Repo != "acme/widgets" || got.Commit != "abc123" || got.FilesTotal != 2 ||
+		got.Files[0].Path != "README.md" || got.Files[0].Headings[1] != "Install" ||
+		got.Digest["src/widgets"] != "Builds and renders widgets." {
+		t.Errorf("brain = %+v", got)
+	}
+	if text, isError := toolText(t, answers["3"]); isError || !strings.Contains(text, "has not read acme/empty yet") {
+		t.Errorf("a repository not read yet = %q (isError=%v)", text, isError)
+	}
+	if text, isError := toolText(t, answers["4"]); !isError || !strings.Contains(text, "sentinel_list_repos") {
+		t.Errorf("an unknown repository = %q (isError=%v)", text, isError)
+	}
+	for _, req := range seen() {
+		if !strings.HasPrefix(req, "GET ") {
+			t.Errorf("a read-only tool sent %s", req)
+		}
 	}
 }
 

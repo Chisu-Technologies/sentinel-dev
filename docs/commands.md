@@ -255,6 +255,8 @@ argument `mcp`. The server it reaches is the one of `sentinel login`, or
 | `sentinel_run_task` | Send a task with the work in the agent's folder that is not on GitHub yet. Returns the run id at once. |
 | `sentinel_run_status` | Where a run is and, once it ends, its pull request, verdict, tests and cost. Read-only. |
 | `sentinel_list_runs` | The latest runs. Read-only. |
+| `sentinel_list_repos` | The repositories connected to Sentinel, and how far its Brain has read each one. Read-only. |
+| `sentinel_brain` | What the Brain knows of one repository: the commit it read, its files with their headings, and the digest of each part. Read-only. |
 | `sentinel_stop_run` | Stop one run that has not ended. |
 
 Each tool runs the command you would type, with `--json`, so the agent gets what a
