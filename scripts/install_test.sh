@@ -2,7 +2,7 @@
 # Tests for install.sh. Each case installs from a release built in a temporary
 # directory and asserts the exit code, what was printed and what is on disk, so an
 # installer that accepts a bad download (or installs nothing and says it did) is
-# caught. `uname` and `cosign` are replaced by small programs first in PATH: the
+# caught. `uname`, `cosign` and `gh` are replaced by small programs first in PATH: the
 # script under test has no test switches of its own.
 # INSTALL_SCRIPT points at another copy of the script, to run these cases against it.
 set -uo pipefail
@@ -14,12 +14,13 @@ trap 'rm -rf "$work"' EXIT
 total=0
 failed=0
 
-# A real cosign on this machine would answer instead of "not installed": the cases
-# decide by themselves whether one is there, so its directory is left out.
+# A real cosign or gh on this machine would answer instead of "not installed": the
+# cases decide by themselves whether one is there, so their directories are left out.
 clean_path=
 IFS=: read -r -a path_dirs <<< "$PATH"
 for d in "${path_dirs[@]}"; do
-  [ -x "$d/cosign" ] || [ -x "$d/cosign.exe" ] || clean_path=${clean_path:+$clean_path:}$d
+  [ -x "$d/cosign" ] || [ -x "$d/cosign.exe" ] || [ -x "$d/gh" ] || [ -x "$d/gh.exe" ] ||
+    clean_path=${clean_path:+$clean_path:}$d
 done
 PATH=$clean_path
 
@@ -41,7 +42,8 @@ new_release() {
   rm -rf "$rel/build"
 }
 
-# shims <os> <arch> [cosign exit status]: programs that answer for the machine.
+# shims <os> <arch> [cosign exit status] [gh auth status exit] [gh verify exit]:
+# programs that answer for the machine. An empty status leaves that program out.
 shims() {
   bin=$work/bin.$total
   mkdir -p "$bin"
@@ -50,6 +52,10 @@ shims() {
   if [ -n "${3:-}" ]; then
     printf '#!/bin/sh\necho "$@" >> "%s/cosign.calls"\nexit %s\n' "$bin" "$3" > "$bin/cosign"
     chmod 755 "$bin/cosign"
+  fi
+  if [ -n "${4:-}" ]; then
+    printf '#!/bin/sh\necho "$@" >> "%s/gh.calls"\n[ "$1" = auth ] && exit %s\nexit %s\n' "$bin" "$4" "${5:-0}" > "$bin/gh"
+    chmod 755 "$bin/gh"
   fi
 }
 
@@ -82,8 +88,8 @@ shims Linux x86_64
 install "$work/rel"
 check "installs the binary of this machine and says where" \
   '[ $code -eq 0 ] && installed && [[ $out == *"Installed sentinel v0.1.0 (test) in $home/.local/bin"* ]]'
-check "says the signature was not checked when cosign is absent" \
-  '[[ $out == *"Signature not checked: cosign is not installed."* ]]'
+check "says the signature was not checked when neither gh nor cosign is here" \
+  '[[ $out == *"Signature not checked: sign in with gh auth login"* ]]'
 check "puts the directory on the PATH of new terminals, and says how to use it now" \
   '[ "$(grep -cF "export PATH=\"$home/.local/bin:\$PATH\"" "$home/.profile")" = 1 ] &&
    [[ $out == *"Added $home/.local/bin to your PATH in $home/.profile."* ]] &&
@@ -172,8 +178,38 @@ check "refuses a release with no signature when cosign is installed" \
 
 shims Linux x86_64
 install "$work/rel" SENTINEL_REQUIRE_SIGNATURE=1
-check "with SENTINEL_REQUIRE_SIGNATURE=1, refuses to install without cosign" \
-  '[ $code -ne 0 ] && nothing_installed && [[ $out == *"cosign is not installed. Nothing was installed."* ]]'
+check "with SENTINEL_REQUIRE_SIGNATURE=1, refuses to install with nothing to check it" \
+  '[ $code -ne 0 ] && nothing_installed && [[ $out == *"no signed-in gh or cosign to check it. Nothing was installed."* ]]'
+
+# GitHub's attestation of the archive: checked by a signed-in gh, preferred to cosign.
+shims Linux x86_64 "" 0 0
+install "$work/rel"
+check "checks the attestation of the archive with a signed-in gh" \
+  '[ $code -eq 0 ] && installed && [[ $out == *"Signature checked with GitHub"* ]] &&
+   grep -q -- "attestation verify .*sentinel_linux_amd64.tar.gz --repo Chisu-Technologies/sentinel-dev --cert-identity-regex .*release.*yml@refs/tags/v.* --cert-oidc-issuer https://token.actions.githubusercontent.com --deny-self-hosted-runners" "$bin/gh.calls"'
+
+shims Linux x86_64 "" 0 1
+install "$work/rel"
+check "refuses an archive GitHub has no valid attestation for, and installs nothing" \
+  '[ $code -ne 0 ] && nothing_installed && [[ $out == *"GitHub has no valid attestation"*"Nothing was installed."* ]]'
+
+shims Linux x86_64 "" 1 0
+install "$work/rel"
+check "a gh that is not signed in is not asked, and the install goes on" \
+  '[ $code -eq 0 ] && installed && [[ $out == *"Signature not checked"* ]] && ! grep -q attestation "$bin/gh.calls" 2>/dev/null'
+
+shims Linux x86_64 1 0 0
+install "$work/rel"
+check "a signed-in gh is preferred to cosign" '[ $code -eq 0 ] && installed && [ ! -e "$bin/cosign.calls" ]'
+
+shims Linux x86_64 0 1 0
+install "$work/rel"
+check "without a gh session, cosign checks the signature" \
+  '[ $code -eq 0 ] && installed && [[ $out == *"Signature checked: built by"* ]] && [ -e "$bin/cosign.calls" ]'
+
+shims Linux x86_64 "" 0 0
+install "$work/rel" SENTINEL_REQUIRE_SIGNATURE=1
+check "with SENTINEL_REQUIRE_SIGNATURE=1, a signed-in gh is enough" '[ $code -eq 0 ] && installed'
 
 # What the variables accept.
 shims Linux x86_64

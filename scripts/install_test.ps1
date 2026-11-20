@@ -1,7 +1,7 @@
 # Tests for install.ps1. Each case installs from a release built in a temporary
 # directory, with the real sentinel.exe of this checkout inside, and asserts the
-# exit code, what was printed and what is on disk. `cosign` is replaced by a small
-# program first in PATH: the script under test has no test switches of its own.
+# exit code, what was printed and what is on disk. `cosign` and `gh` are replaced by
+# small programs first in PATH: the script under test has no test switches of its own.
 # $env:INSTALL_SCRIPT points at another copy of the script, to run these cases
 # against it. Runs on Windows PowerShell 5.1 and on PowerShell 7; needs Go.
 
@@ -17,10 +17,11 @@ $total = 0
 $failed = 0
 $case = 0
 
-# A real cosign on this machine would answer instead of "not installed": the cases
-# decide by themselves whether one is there, so its directory is left out.
+# A real cosign or gh on this machine would answer instead of "not installed": the
+# cases decide by themselves whether one is there, so their directories are left out.
 $cleanPath = (($env:Path -split ';') | Where-Object {
-        $_ -and -not (Test-Path (Join-Path $_ 'cosign.exe')) -and -not (Test-Path (Join-Path $_ 'cosign.cmd'))
+        $entry = $_
+        $entry -and -not (@('cosign.exe', 'cosign.cmd', 'gh.exe', 'gh.cmd') | Where-Object { Test-Path (Join-Path $entry $_) })
     }) -join ';'
 
 $arch = 'amd64'
@@ -47,8 +48,9 @@ function New-Release($name, $content = (Join-Path $build 'sentinel.exe')) {
     return $rel
 }
 
-# Install <release dir> [-Cosign <exit status>] [-Vars @{NAME = value}]  ->  sets $out, $code, $dir
-function Install($rel, $Cosign = $null, $Vars = @{}) {
+# Install <release dir> [-Cosign <exit status>] [-Gh <auth status exit>, <verify exit>]
+#         [-Vars @{NAME = value}]  ->  sets $out, $code, $dir, $calls, $ghCalls
+function Install($rel, $Cosign = $null, $Gh = $null, $Vars = @{}) {
     $script:case++
     $script:dir = Join-Path $work "install.$($script:case)"
     $bin = Join-Path $work "bin.$($script:case)"
@@ -56,6 +58,10 @@ function Install($rel, $Cosign = $null, $Vars = @{}) {
     $script:calls = Join-Path $bin 'cosign.calls'
     if ($null -ne $Cosign) {
         [IO.File]::WriteAllText((Join-Path $bin 'cosign.cmd'), "@echo off`r`necho %* >> `"%~dp0cosign.calls`"`r`nexit /b $Cosign`r`n")
+    }
+    $script:ghCalls = Join-Path $bin 'gh.calls'
+    if ($null -ne $Gh) {
+        [IO.File]::WriteAllText((Join-Path $bin 'gh.cmd'), "@echo off`r`necho %* >> `"%~dp0gh.calls`"`r`nif `"%1`"==`"auth`" exit /b $($Gh[0])`r`nexit /b $($Gh[1])`r`n")
     }
     $saved = @{}
     $set = @{ Path = "$bin;$cleanPath"; SENTINEL_DOWNLOAD_BASE = $rel; SENTINEL_INSTALL_DIR = $script:dir;
@@ -97,7 +103,7 @@ try {
 
     Install $rel
     Check 'installs sentinel.exe and says where' { $code -eq 0 -and (Installed) -and $out -match 'Installed sentinel \S+ \(go' -and $out.Contains($dir) }
-    Check 'says the signature was not checked when cosign is absent' { $out.Contains('Signature not checked: cosign is not installed.') }
+    Check 'says the signature was not checked when neither gh nor cosign is here' { $out.Contains('Signature not checked: sign in with gh auth login') }
     Check 'says when the directory is not in PATH' { $out.Contains('is not in your PATH') }
     Check 'leaves one file in the directory' { @(Get-ChildItem -LiteralPath $dir -Force).Count -eq 1 }
 
@@ -137,7 +143,30 @@ try {
     Check 'refuses a release with no signature when cosign is installed' { $code -ne 0 -and (NothingInstalled) -and $out.Contains('The release has no signature for SHA256SUMS.') }
 
     Install $rel -Vars @{ SENTINEL_REQUIRE_SIGNATURE = '1' }
-    Check 'with SENTINEL_REQUIRE_SIGNATURE=1, refuses to install without cosign' { $code -ne 0 -and (NothingInstalled) -and $out.Contains('cosign is not installed. Nothing was installed.') }
+    Check 'with SENTINEL_REQUIRE_SIGNATURE=1, refuses to install with nothing to check it' { $code -ne 0 -and (NothingInstalled) -and $out.Contains('no signed-in gh or cosign to check it.') }
+
+    Install $rel -Gh 0, 0
+    Check 'checks the attestation of the archive with a signed-in gh' {
+        $code -eq 0 -and (Installed) -and $out.Contains('Signature checked with GitHub') -and
+        ((Get-Content -LiteralPath $ghCalls -Raw) -match "attestation verify \S*$([regex]::Escape($asset)) --repo Chisu-Technologies/sentinel-dev --cert-identity-regex \S*release\S*yml@refs/tags/v\S* --cert-oidc-issuer https://token\.actions\.githubusercontent\.com --deny-self-hosted-runners")
+    }
+
+    Install $rel -Gh 0, 1
+    Check 'refuses an archive GitHub has no valid attestation for, and installs nothing' { $code -ne 0 -and (NothingInstalled) -and $out.Contains('GitHub has no valid attestation') -and $out.Contains('Nothing was installed.') }
+
+    Install $rel -Gh 1, 0
+    Check 'a gh that is not signed in is not asked, and the install goes on' {
+        $code -eq 0 -and (Installed) -and $out.Contains('Signature not checked') -and -not ((Test-Path -LiteralPath $ghCalls) -and (Get-Content -LiteralPath $ghCalls -Raw) -match 'attestation')
+    }
+
+    Install $rel -Gh 0, 0 -Cosign 1
+    Check 'a signed-in gh is preferred to cosign' { $code -eq 0 -and (Installed) -and -not (Test-Path -LiteralPath $calls) }
+
+    Install $rel -Gh 1, 0 -Cosign 0
+    Check 'without a gh session, cosign checks the signature' { $code -eq 0 -and (Installed) -and $out.Contains('Signature checked: built by') -and (Test-Path -LiteralPath $calls) }
+
+    Install $rel -Gh 0, 0 -Vars @{ SENTINEL_REQUIRE_SIGNATURE = '1' }
+    Check 'with SENTINEL_REQUIRE_SIGNATURE=1, a signed-in gh is enough' { $code -eq 0 -and (Installed) }
 
     Install 'http://example.invalid/releases'
     Check 'refuses a download address that is not https' { $code -ne 0 -and (NothingInstalled) -and $out.Contains('SENTINEL_DOWNLOAD_BASE must use https.') }

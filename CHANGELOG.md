@@ -18,6 +18,13 @@ Notable changes are listed here, following
   `sentinel-qa`, `sentinel-reviewer-a` (Opus) and `sentinel-reviewer-b` (Sonnet). It needs a
   Sentinel release with this feature.
 
+### Changed
+
+- The installers check who built the release without cosign: with `gh` signed in, they
+  ask GitHub for the attestation of the archive that each release now carries. When the
+  check fails, nothing is installed. A `gh` without a session is not asked; cosign still
+  works as before, and `SENTINEL_REQUIRE_SIGNATURE=1` accepts either.
+
 ## [0.6.0] - 2026-11-20
 
 ### Added
