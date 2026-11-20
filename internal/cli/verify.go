@@ -105,7 +105,8 @@ func runVerify(ctx context.Context, args []string, env Env) int {
 	noWait := fs.Bool("no-wait", false, "print the run id and stop, without waiting for the verdict")
 	timeout := fs.Duration("timeout", 45*time.Minute, "how long to wait for the verdict, such as 30m")
 	base := fs.String("base", "", "the branch the pull request targets, when it is not the default one")
-	if code := parse(fs, args, env, "verify [--dry-run] [--json] [--no-wait] [--timeout <duration>] [--base <branch>] <pull request>"); code >= 0 {
+	qaByAgent := fs.Bool("qa-by-agent", false, "the QA and the reviewers are answered by the coding agent that sends the run, with its own subagents (Claude Code's sentinel plugin)")
+	if code := parse(fs, args, env, "verify [--dry-run] [--json] [--no-wait] [--timeout <duration>] [--base <branch>] [--qa-by-agent] <pull request>"); code >= 0 {
 		return code
 	}
 	if fs.NArg() != 1 {
@@ -143,7 +144,7 @@ func runVerify(ctx context.Context, args []string, env Env) int {
 	if code >= 0 {
 		return code
 	}
-	return verify(ctx, env, client, pr, *base, *noWait, *timeout, *asJSON)
+	return verify(ctx, env, client, pr, *base, *qaByAgent, *noWait, *timeout, *asJSON)
 }
 
 func validBase(s string) bool {
@@ -182,13 +183,13 @@ func table(env Env, label, value string) {
 	fmt.Fprintf(env.Stdout, "%-14s%s\n", label, value)
 }
 
-func verify(ctx context.Context, env Env, client *server.Client, pr pullRequest, base string, noWait bool, timeout time.Duration, asJSON bool) int {
+func verify(ctx context.Context, env Env, client *server.Client, pr pullRequest, base string, qaByAgent, noWait bool, timeout time.Duration, asJSON bool) int {
 	fail := func(format string, a ...any) int {
 		fmt.Fprintf(env.Stderr, "sentinel: "+format+"\n", a...)
 		return ExitFailed
 	}
 
-	run, err := client.StartVerify(ctx, server.StartRequest{Repository: pr.Repository, PullNumber: pr.Number, BaseRef: base})
+	run, err := client.StartVerify(ctx, server.StartRequest{Repository: pr.Repository, PullNumber: pr.Number, BaseRef: base, QAByAgent: qaByAgent})
 	if err != nil {
 		return fail("%v", err)
 	}

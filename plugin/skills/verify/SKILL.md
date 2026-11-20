@@ -12,12 +12,18 @@ fail without the fix, signs the result and opens a pull request. It never merges
    can run them. Do not commit or push: Sentinel takes the work as it is in the
    folder, including what is not on GitHub yet.
 2. Call the `sentinel_run_task` tool with a one or two sentence `task` that says what
-   the change does, the way a person would describe it in a pull request. Pass
-   `base` only when the pull request should target a branch other than the
-   repository's default.
+   the change does, the way a person would describe it in a pull request, and
+   `qa_by_you: true`, so your subagents answer its QA and reviewers on the user's
+   plan instead of a key. Pass `base` only when the pull request should target a
+   branch other than the repository's default.
 3. It returns a run id at once. Call `sentinel_run_status` with that id about once a
    minute until the run ends (`completed`, `blocked`, `failed`, `stopped` or
    `cancelled`). Do not start a second run for the same change while one is going.
+   When the status lists sessions under `waiting_for_your_agent`, start one subagent
+   per session, all at once, and give each its `session_id`: `sentinel-qa` for the
+   role `qa`, `sentinel-reviewer-a` for `reviewer-a` and `sentinel-reviewer-b` for
+   `reviewer-b`. Then go back to checking the status. Sentinel stops the run if no
+   subagent takes a session within 30 minutes.
 4. Tell the user what Sentinel reports, exactly: the final status, the pull request
    link, the QA verdict, the tests that passed out of the total, and the cost.
 5. When the run is `blocked` or the verdict is not approved, read what Sentinel says

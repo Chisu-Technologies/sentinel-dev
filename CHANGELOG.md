@@ -7,6 +7,17 @@ Notable changes are listed here, following
 
 ## [Unreleased]
 
+### Added
+
+- Your own coding agent can answer the QA and the reviewers of the runs it sends, on its
+  own plan instead of a key: `qa_by_you` on `sentinel_verify_pull_request` and
+  `sentinel_run_task` (`--qa-by-agent` on `sentinel verify` and `sentinel run`), the
+  sessions waiting for it in `sentinel_run_status`, and the tools `sentinel_session_open`
+  and `sentinel_session_call`. Sentinel still runs every tool in its sandbox and decides
+  the verdict. The Claude Code plugin does it by itself with three subagents:
+  `sentinel-qa`, `sentinel-reviewer-a` (Opus) and `sentinel-reviewer-b` (Sonnet). It needs a
+  Sentinel release with this feature.
+
 ## [0.6.0] - 2026-11-20
 
 ### Added

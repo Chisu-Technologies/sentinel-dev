@@ -83,7 +83,7 @@ func TestMCPHandshakeListsTheToolsAndAnswersOnlyRequests(t *testing.T) {
 	for _, tool := range answers["2"]["result"].(map[string]any)["tools"].([]any) {
 		names = append(names, tool.(map[string]any)["name"].(string))
 	}
-	want := "sentinel_verify_pull_request sentinel_run_task sentinel_run_status sentinel_list_runs sentinel_list_repos sentinel_brain sentinel_stop_run"
+	want := "sentinel_verify_pull_request sentinel_run_task sentinel_run_status sentinel_list_runs sentinel_list_repos sentinel_brain sentinel_stop_run sentinel_session_open sentinel_session_call"
 	if strings.Join(names, " ") != want {
 		t.Errorf("tools = %v, want %s", names, want)
 	}

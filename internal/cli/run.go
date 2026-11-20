@@ -44,7 +44,8 @@ func runRun(ctx context.Context, args []string, env Env) int {
 	timeout := fs.Duration("timeout", 2*time.Hour, "how long to wait for the run to end, such as 90m")
 	base := fs.String("base", "", "the branch the pull request targets, when it is not the default one")
 	fromClaudeCode := fs.Bool("from-claude-code", false, "take the task from the newest Claude Code session in this folder")
-	if code := parse(fs, args, env, `run [--dry-run] [--json] [--no-wait] [--timeout <duration>] [--base <branch>] "<task>" | run --from-claude-code [...]`); code >= 0 {
+	qaByAgent := fs.Bool("qa-by-agent", false, "the QA and the reviewers are answered by the coding agent that sends the run, with its own subagents (Claude Code's sentinel plugin)")
+	if code := parse(fs, args, env, `run [--dry-run] [--json] [--no-wait] [--timeout <duration>] [--base <branch>] [--qa-by-agent] "<task>" | run --from-claude-code [...]`); code >= 0 {
 		return code
 	}
 	task := strings.TrimSpace(fs.Arg(0))
@@ -94,7 +95,7 @@ func runRun(ctx context.Context, args []string, env Env) int {
 	if *dry {
 		return runDryRunReport(env, task, pkg, *asJSON)
 	}
-	return runTask(ctx, env, client, task, pkg, *base, *noWait, *timeout, *asJSON)
+	return runTask(ctx, env, client, task, pkg, *base, *qaByAgent, *noWait, *timeout, *asJSON)
 }
 
 func runDryRunReport(env Env, task string, pkg checkout.Package, asJSON bool) int {
@@ -116,7 +117,7 @@ func runDryRunReport(env Env, task string, pkg checkout.Package, asJSON bool) in
 	return ExitOK
 }
 
-func runTask(ctx context.Context, env Env, client *server.Client, task string, pkg checkout.Package, base string, noWait bool, timeout time.Duration, asJSON bool) int {
+func runTask(ctx context.Context, env Env, client *server.Client, task string, pkg checkout.Package, base string, qaByAgent, noWait bool, timeout time.Duration, asJSON bool) int {
 	fail := func(format string, a ...any) int {
 		fmt.Fprintf(env.Stderr, "sentinel: "+format+"\n", a...)
 		return ExitFailed
@@ -128,6 +129,7 @@ func runTask(ctx context.Context, env Env, client *server.Client, task string, p
 		Task:       task,
 		BaseCommit: pkg.BaseCommit,
 		Patch:      pkg.Patch,
+		QAByAgent:  qaByAgent,
 	})
 	if err != nil {
 		return fail("%v", err)
