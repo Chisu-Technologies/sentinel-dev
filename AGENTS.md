@@ -1,5 +1,8 @@
 # Instructions for agents
 
+> Asked to **install** Sentinel on someone's computer, not to change this repository?
+> Follow [INSTALL.md](INSTALL.md) instead of this file.
+
 These rules apply to any AI agent that edits this repository, on top of
 [CONTRIBUTING.md](CONTRIBUTING.md).
 

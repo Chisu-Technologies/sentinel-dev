@@ -12,6 +12,11 @@
 **Dale una tarea a un agente en tu propio servidor. Recibe un pull request que un QA
 aparte probó antes de abrirlo.**
 
+> **Deja que tu agente lo instale.** Dile a Claude Code, Codex, la app de Claude o de
+> ChatGPT o Cursor: *«Instala Sentinel en este ordenador desde
+> https://github.com/Chisu-Technologies/sentinel-dev, siguiendo su INSTALL.md.»*
+> [INSTALL.md](INSTALL.md) tiene los pasos que sigue.
+
 Sentinel ejecuta agentes de programación en una máquina que controlas tú. Cada tarea
 corre en un sandbox que nunca tiene tus llaves. Un segundo agente, que no escribió el
 cambio, lo prueba. El resultado es un pull request para que lo revises; el agente no

@@ -17,6 +17,8 @@ Notable changes are listed here, following
 - A Claude Code plugin, `sentinel@chisu-sentinel`, in this repository's marketplace: the
   `sentinel mcp` server and three skills (`verify`, `verify-pr`, `runs`) that tell Claude Code
   when to send a change to Sentinel and how to follow it until its pull request.
+- [INSTALL.md](INSTALL.md): the steps an AI agent follows when someone gives it this repository
+  and asks it to install Sentinel; the README and AGENTS.md point to it.
 
 ## [0.5.0] - 2026-11-19
 
