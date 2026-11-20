@@ -7,6 +7,8 @@ Notable changes are listed here, following
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-11-20
+
 ### Added
 
 - Your own coding agent can answer the QA and the reviewers of the runs it sends, on its
@@ -15,8 +17,8 @@ Notable changes are listed here, following
   sessions waiting for it in `sentinel_run_status`, and the tools `sentinel_session_open`
   and `sentinel_session_call`. Sentinel still runs every tool in its sandbox and decides
   the verdict. The Claude Code plugin does it by itself with three subagents:
-  `sentinel-qa`, `sentinel-reviewer-a` (Opus) and `sentinel-reviewer-b` (Sonnet). It needs a
-  Sentinel release with this feature.
+  `sentinel-qa`, `sentinel-reviewer-a` (Opus) and `sentinel-reviewer-b` (Sonnet). The
+  signed attestation of such a run says your agent did the QA and the reviews.
 
 ### Changed
 
@@ -24,6 +26,8 @@ Notable changes are listed here, following
   ask GitHub for the attestation of the archive that each release now carries. When the
   check fails, nothing is installed. A `gh` without a session is not asked; cosign still
   works as before, and `SENTINEL_REQUIRE_SIGNATURE=1` accepts either.
+- The server that `sentinel up` runs is Sentinel 32fafe19: it takes the QA and the reviews
+  from your own agent, and its first steps explain how to use Sentinel from a coding agent.
 
 ## [0.6.0] - 2026-11-20
 
