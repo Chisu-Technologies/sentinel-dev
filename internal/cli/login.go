@@ -23,7 +23,7 @@ const maxLoginWait = 15 * time.Minute
 
 func runLogin(ctx context.Context, args []string, env Env) int {
 	fs := flag.NewFlagSet("login", flag.ContinueOnError)
-	address := fs.String("url", "", "the address of your Sentinel server; SENTINEL_URL when not given")
+	address := fs.String("url", "", "the address of your Sentinel server; when not given, SENTINEL_URL or the one sentinel up installed here")
 	withChatGPT := fs.Bool("chatgpt", false, "lend your ChatGPT plan to the Sentinel you are signed in to")
 	if code := parse(fs, args, env, "login [--url <address>] | login --chatgpt"); code >= 0 {
 		return code
@@ -53,8 +53,15 @@ func runLogin(ctx context.Context, args []string, env Env) int {
 		raw = env.getenv("SENTINEL_URL")
 	}
 	if raw == "" {
-		fmt.Fprintln(env.Stderr, "sentinel login needs the address of your Sentinel server: sentinel login --url https://sentinel.example.com")
-		return ExitUsage
+		// The panel's setup guide says "run sentinel login" with no address: on a
+		// machine where `up` installed Sentinel, that one is the server.
+		panel, ok := localPanel(env)
+		if !ok {
+			fmt.Fprintln(env.Stderr, "sentinel login needs the address of your Sentinel server: sentinel login --url https://sentinel.example.com")
+			return ExitUsage
+		}
+		fmt.Fprintf(env.Stdout, "Signing in to the Sentinel on this machine (%s).\n", panel)
+		raw = panel
 	}
 	return signInTo(ctx, env, raw)
 }
@@ -68,6 +75,11 @@ func unsignedLocalInstall(env Env) (string, bool) {
 	if _, ok, err := loadCredentials(env); err != nil || ok {
 		return "", false
 	}
+	return localPanel(env)
+}
+
+// localPanel reports the panel of the installation `up` made on this machine.
+func localPanel(env Env) (string, bool) {
 	// Env.HomeDir, not the process's home: a test leaves it empty and never sees
 	// the machine's own installation.
 	dir := env.getenv("SENTINEL_HOME")
