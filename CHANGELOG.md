@@ -7,6 +7,8 @@ Notable changes are listed here, following
 
 ## [Unreleased]
 
+## [0.7.2] - 2026-11-20
+
 ### Changed
 
 - `sentinel update` checks who built the release as the installers do: with `gh` signed in,
