@@ -258,6 +258,17 @@ argument `mcp`. The server it reaches is the one of `sentinel login`, or
 | `sentinel_list_repos` | The repositories connected to Sentinel, and how far its Brain has read each one. Read-only. |
 | `sentinel_brain` | What the Brain knows of one repository: the commit it read, its files with their headings, and the digest of each part. Read-only. |
 | `sentinel_stop_run` | Stop one run that has not ended. |
+| `sentinel_session_open` | Take one QA or reviewer session a run waits for your agent to answer: the token, the instructions and the only tools the subagent may call. |
+| `sentinel_session_call` | Call one tool of that session; Sentinel runs it in its sandbox. |
+
+With `qa_by_you: true` (`--qa-by-agent` on `sentinel verify` and `sentinel run`), the
+agent that sends a run answers its QA and both reviewers with its own subagents, on
+its own plan, instead of the model Sentinel calls with a key. `sentinel_run_status`
+then lists the sessions under `waiting_for_your_agent`; Sentinel still runs every
+tool and decides the verdict by its own rules, and stops the run if no subagent takes
+a session within 30 minutes. The Claude Code plugin does this by itself, with the
+subagents `sentinel-qa`, `sentinel-reviewer-a` (Opus) and `sentinel-reviewer-b`
+(Sonnet). It needs a Sentinel with this feature; an older one uses its own model.
 
 Each tool runs the command you would type, with `--json`, so the agent gets what a
 script gets. Nothing but protocol messages is written to stdout.
