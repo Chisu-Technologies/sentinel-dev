@@ -94,6 +94,18 @@ func randomToken() (string, error) {
 	return base64.RawURLEncoding.EncodeToString(b[:]), nil
 }
 
+// ExchangeError is OpenAI refusing the code exchange. ClientID is the client
+// the attempt used, the issued one after a first registration: OpenAI says to
+// keep it and sign in again with it, since the registration stands.
+type ExchangeError struct {
+	ClientID string
+	Code     string
+}
+
+func (e *ExchangeError) Error() string {
+	return "OpenAI refused the code exchange: " + e.Code
+}
+
 type callback struct {
 	code, state, clientID, errCode string
 }
@@ -220,6 +232,10 @@ func (f Flow) SignIn(ctx context.Context) (Credentials, error) {
 		Scope        string `json:"scope"`
 	}
 	if err := postForm(ctx, client, base+"/api/accounts/oauth/token", form, &tok); err != nil {
+		var refused *ExchangeError
+		if errors.As(err, &refused) {
+			refused.ClientID = clientID
+		}
 		return Credentials{}, err
 	}
 	scopes := strings.Fields(tok.Scope)
@@ -279,7 +295,7 @@ func postForm(ctx context.Context, client *http.Client, endpoint string, form ur
 		if e.Error == "" {
 			e.Error = resp.Status
 		}
-		return fmt.Errorf("OpenAI refused the code exchange: %s", e.Error)
+		return &ExchangeError{Code: e.Error}
 	}
 	return json.Unmarshal(body, out)
 }

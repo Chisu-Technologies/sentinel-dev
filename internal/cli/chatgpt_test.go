@@ -38,6 +38,8 @@ type fakeOpenAIAuth struct {
 	challenge string
 	nonce     string
 	opened    []url.Values
+	// refusals is how many code exchanges answer invalid_grant before one succeeds.
+	refusals int
 }
 
 func newFakeOpenAIAuth(t *testing.T) *fakeOpenAIAuth {
@@ -65,6 +67,12 @@ func newFakeOpenAIAuth(t *testing.T) *fakeOpenAIAuth {
 		sum := sha256.Sum256([]byte(r.PostForm.Get("code_verifier")))
 		if base64.RawURLEncoding.EncodeToString(sum[:]) != f.challenge {
 			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		if f.refusals > 0 {
+			f.refusals--
+			w.WriteHeader(http.StatusBadRequest)
+			io.WriteString(w, `{"error":"invalid_grant"}`)
 			return
 		}
 		enc := func(v any) string { b, _ := json.Marshal(v); return base64.RawURLEncoding.EncodeToString(b) }
@@ -216,5 +224,36 @@ func TestLoginWithChatGPTNeedsASentinelToHandItTo(t *testing.T) {
 	})
 	if code != ExitFailed || len(auth.opened) != 0 {
 		t.Fatalf("code %d, opened %d pages; stderr %s", code, len(auth.opened), stderr.String())
+	}
+}
+
+// OpenAI registers the client and then refuses the exchange with a bare invalid_grant when the
+// person's workspace and plan cannot lend ChatGPT plan usage. Its documentation says to keep the
+// issued client and start again with it; only that returning sign-in shows the person why.
+func TestARefusedExchangeKeepsTheIssuedClientAndSaysWhatToCheck(t *testing.T) {
+	auth := newFakeOpenAIAuth(t)
+	auth.refusals = 1
+	var received []map[string]any
+	sentinel := fakeSentinel(t, &received)
+	dir := t.TempDir()
+
+	first := chatgptLogin(t, auth, sentinel.URL, dir)
+	if first.code != ExitFailed || len(received) != 0 {
+		t.Fatalf("first %+v, server received %d", first, len(received))
+	}
+	if !strings.Contains(first.stderr, "invalid_grant") || !strings.Contains(first.stderr, "ChatGPT Plus or Pro") {
+		t.Errorf("stderr = %s", first.stderr)
+	}
+	kept, err := os.ReadFile(filepath.Join(dir, "sentinel", "chatgpt.json"))
+	if err != nil || !strings.Contains(string(kept), "oaiapp_issued") {
+		t.Fatalf("kept %s (%v)", kept, err)
+	}
+
+	second := chatgptLogin(t, auth, sentinel.URL, dir)
+	if second.code != ExitOK || len(received) != 1 {
+		t.Fatalf("second %+v", second)
+	}
+	if got := auth.opened[1].Get("client_id"); got != "oaiapp_issued" {
+		t.Errorf("the second sign-in asked as %q, not the issued client", got)
 	}
 }

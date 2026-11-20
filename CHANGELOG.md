@@ -29,6 +29,13 @@ Notable changes are listed here, following
 - `sentinel up` writes the key that signs each run's access to those tools, and adds it
   to an installation made before.
 
+### Fixed
+
+- `sentinel login --chatgpt` keeps the client OpenAI issued even when OpenAI refuses the code
+  exchange, as OpenAI asks, and says what to check: lending a ChatGPT plan needs ChatGPT Plus
+  or Pro on the chosen workspace. Signing in again then shows OpenAI's own reason instead of
+  registering a new client each time.
+
 ## [0.5.0] - 2026-11-19
 
 ### Added
