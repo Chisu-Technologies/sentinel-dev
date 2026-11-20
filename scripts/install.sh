@@ -13,7 +13,8 @@
 #   SENTINEL_DOWNLOAD_BASE      where releases are read from: an https address that
 #                               mirrors the release pages, or a directory that holds
 #                               the files of one release. Empty: GitHub.
-#   SENTINEL_REQUIRE_SIGNATURE  1: stop unless the signature of SHA256SUMS was checked.
+#   SENTINEL_REQUIRE_SIGNATURE  1: stop unless the signature was checked, by GitHub
+#                               (a signed-in gh) or by cosign.
 #   SENTINEL_NO_MODIFY_PATH     1: leave PATH and the shell startup files alone.
 set -eu
 
@@ -97,15 +98,28 @@ sha256_of() {
   fi
 }
 
-# check_signature: verifies SHA256SUMS against the signature of the release, when
-# cosign is here to do it. The checksum alone only says the download is the file the
-# release lists; the signature says who built the release.
+# check_signature: checks who built the release, when something here can. The
+# checksum alone only says the download is the file the release lists. GitHub keeps
+# an attestation of each archive, and the gh that Sentinel already needs can check
+# it, but only once signed in: a gh without a session answers nothing, so it counts
+# as absent rather than as a failed check. Otherwise cosign checks SHA256SUMS.
 check_signature() {
+  if have gh && gh auth status >/dev/null 2>&1; then
+    if ! gh attestation verify "$tmp/$asset" \
+      --repo "$REPO" \
+      --cert-identity-regex "$SIGNER_PATTERN" \
+      --cert-oidc-issuer "$SIGNER_ISSUER" \
+      --deny-self-hosted-runners >/dev/null 2>&1; then
+      fail "GitHub has no valid attestation that the release workflow of $REPO built $asset. Nothing was installed."
+    fi
+    say "Signature checked with GitHub: built by the release workflow of $REPO."
+    return 0
+  fi
   if ! have cosign; then
     if [ "${SENTINEL_REQUIRE_SIGNATURE:-}" = 1 ]; then
-      fail "SENTINEL_REQUIRE_SIGNATURE is set and cosign is not installed. Nothing was installed."
+      fail "SENTINEL_REQUIRE_SIGNATURE is set and there is no signed-in gh or cosign to check it. Nothing was installed."
     fi
-    say "Signature not checked: cosign is not installed."
+    say "Signature not checked: sign in with gh auth login (or install cosign) and run this again to check it."
     return 0
   fi
   if ! fetch SHA256SUMS.sigstore.json "$tmp/SHA256SUMS.sigstore.json" 2>/dev/null; then

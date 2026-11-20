@@ -42,22 +42,37 @@ What the installer does, and nothing else:
 | `SENTINEL_VERSION` | Install this tag, such as `v0.1.0`, instead of the latest release. |
 | `SENTINEL_INSTALL_DIR` | Put the binary in this directory. |
 | `SENTINEL_DOWNLOAD_BASE` | Read releases from here: an https address that mirrors the release pages, or a directory that holds the files of one release. For a machine without access to GitHub. |
-| `SENTINEL_REQUIRE_SIGNATURE` | Set to `1` to stop unless the signature was checked. |
+| `SENTINEL_REQUIRE_SIGNATURE` | Set to `1` to stop unless the signature was checked, by a signed-in `gh` or by cosign. |
 | `SENTINEL_NO_MODIFY_PATH` | Set to `1` to leave your `PATH` and your startup files as they are. |
 
 ## The checksum and the signature
 
 They answer different questions. The checksum says the archive is the file the release
 lists; it comes from the same place as the archive, so it does not say who built it.
-The signature does: the release workflow signs `SHA256SUMS` with the identity of its own
-run, through [Sigstore](https://www.sigstore.dev/), and no signing key is stored
-anywhere.
+The signature does. The release workflow signs with the identity of its own run, through
+[Sigstore](https://www.sigstore.dev/), and no signing key is stored anywhere. It does
+this twice: GitHub keeps an attestation of each archive, from v0.7.0 on, and
+`SHA256SUMS.sigstore.json` signs `SHA256SUMS`.
 
-The installer checks the signature when [cosign](https://docs.sigstore.dev/cosign/system_config/installation/)
-is installed, and prints whether it did. Without cosign it prints
-`Signature not checked: cosign is not installed.` and goes on with the checksum alone.
+The installer checks one of them and prints which:
 
-To check a download by hand, from the directory that holds the three files:
+- With `gh` signed in (`gh auth login`), which Sentinel needs anyway, it asks GitHub
+  for the attestation of the archive: `Signature checked with GitHub`.
+- Otherwise, when [cosign](https://docs.sigstore.dev/cosign/system_config/installation/)
+  is installed, it checks the signature of `SHA256SUMS`.
+- With neither, it prints `Signature not checked` and goes on with the checksum alone.
+  Sign in with `gh auth login` and run the installer again to check it.
+
+A failed check stops the install, and nothing is installed. `gh attestation verify` only
+works signed in, so a `gh` without a session is not asked. Releases before v0.7.0 have no
+attestation: to install one of those with `gh` signed in, the check fails, so use cosign
+or the checksum alone.
+
+To check a download by hand, from the directory that holds the files:
+
+```bash
+gh attestation verify sentinel_linux_amd64.tar.gz --repo Chisu-Technologies/sentinel-dev --cert-identity-regex '^https://github\.com/Chisu-Technologies/sentinel-dev/\.github/workflows/release\.yml@refs/tags/v[0-9]+\.[0-9]+\.[0-9]+$' --deny-self-hosted-runners
+```
 
 ```bash
 cosign verify-blob --bundle SHA256SUMS.sigstore.json --certificate-identity-regexp '^https://github\.com/Chisu-Technologies/sentinel-dev/\.github/workflows/release\.yml@refs/tags/v[0-9]+\.[0-9]+\.[0-9]+$' --certificate-oidc-issuer https://token.actions.githubusercontent.com SHA256SUMS

@@ -12,7 +12,8 @@
 #   SENTINEL_DOWNLOAD_BASE      where releases are read from: an https address that
 #                               mirrors the release pages, or a directory that holds
 #                               the files of one release. Empty: GitHub.
-#   SENTINEL_REQUIRE_SIGNATURE  1: stop unless the signature of SHA256SUMS was checked.
+#   SENTINEL_REQUIRE_SIGNATURE  1: stop unless the signature was checked, by GitHub
+#                               (a signed-in gh) or by cosign.
 
 function Install-Sentinel {
     $ErrorActionPreference = 'Stop'
@@ -99,8 +100,28 @@ function Install-Sentinel {
         if (-not (& $fetch $asset $archive)) { throw "Could not download $asset." }
 
         # The checksum alone only says the download is the file the release lists;
-        # the signature says who built the release.
-        if (Get-Command cosign -ErrorAction SilentlyContinue) {
+        # the signature says who built the release. GitHub keeps an attestation of
+        # each archive, and the gh that Sentinel already needs can check it, but
+        # only once signed in: a gh without a session answers nothing, so it is
+        # treated as absent rather than as a failed check.
+        $ghReady = $false
+        if (Get-Command gh -ErrorAction SilentlyContinue) {
+            $ErrorActionPreference = 'Continue'
+            & gh auth status 2>&1 | Out-Null
+            $ghReady = ($LASTEXITCODE -eq 0)
+            $ErrorActionPreference = 'Stop'
+        }
+        if ($ghReady) {
+            $ErrorActionPreference = 'Continue'
+            & gh attestation verify $archive --repo $repo --cert-identity-regex $signerPattern --cert-oidc-issuer $signerIssuer --deny-self-hosted-runners 2>&1 | Out-Null
+            $verified = $LASTEXITCODE
+            $ErrorActionPreference = 'Stop'
+            if ($verified -ne 0) {
+                throw "GitHub has no valid attestation that the release workflow of $repo built $asset. Nothing was installed."
+            }
+            Write-Output "Signature checked with GitHub: built by the release workflow of $repo."
+        }
+        elseif (Get-Command cosign -ErrorAction SilentlyContinue) {
             $bundle = Join-Path $tmp 'SHA256SUMS.sigstore.json'
             if (-not (& $fetch 'SHA256SUMS.sigstore.json' $bundle)) {
                 throw 'The release has no signature for SHA256SUMS.'
@@ -117,10 +138,10 @@ function Install-Sentinel {
             Write-Output "Signature checked: built by the release workflow of $repo."
         }
         elseif ("$env:SENTINEL_REQUIRE_SIGNATURE" -eq '1') {
-            throw 'SENTINEL_REQUIRE_SIGNATURE is set and cosign is not installed. Nothing was installed.'
+            throw 'SENTINEL_REQUIRE_SIGNATURE is set and there is no signed-in gh or cosign to check it. Nothing was installed.'
         }
         else {
-            Write-Output 'Signature not checked: cosign is not installed.'
+            Write-Output 'Signature not checked: sign in with gh auth login (or install cosign) and run this again to check it.'
         }
 
         $want = ''
