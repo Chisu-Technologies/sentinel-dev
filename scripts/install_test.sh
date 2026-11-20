@@ -15,12 +15,24 @@ total=0
 failed=0
 
 # A real cosign or gh on this machine would answer instead of "not installed": the
-# cases decide by themselves whether one is there, so their directories are left out.
+# cases decide by themselves whether one is there. Their directory is not just left
+# out: on Ubuntu runners gh lives in /usr/bin, beside the mkdir and tar the tests need.
+# It is replaced by a directory of links to everything in it but them.
 clean_path=
+masked=0
 IFS=: read -r -a path_dirs <<< "$PATH"
 for d in "${path_dirs[@]}"; do
-  [ -x "$d/cosign" ] || [ -x "$d/cosign.exe" ] || [ -x "$d/gh" ] || [ -x "$d/gh.exe" ] ||
-    clean_path=${clean_path:+$clean_path:}$d
+  if [ -x "$d/cosign" ] || [ -x "$d/cosign.exe" ] || [ -x "$d/gh" ] || [ -x "$d/gh.exe" ]; then
+    masked=$((masked + 1))
+    mirror=$work/path.$masked
+    mkdir "$mirror"
+    for f in "$d"/*; do
+      case ${f##*/} in cosign | cosign.exe | gh | gh.exe) continue ;; esac
+      [ -e "$f" ] && ln -s "$f" "$mirror/"
+    done
+    d=$mirror
+  fi
+  clean_path=${clean_path:+$clean_path:}$d
 done
 PATH=$clean_path
 
