@@ -218,6 +218,22 @@ In Claude Code:
 claude mcp add --transport stdio sentinel -- sentinel mcp
 ```
 
+Or install the Sentinel plugin, which brings the same server and teaches Claude Code
+when to use it: `/sentinel:verify` sends the change you made, `/sentinel:verify-pr`
+checks a pull request, and `/sentinel:runs` shows the latest runs. Claude Code also
+uses them on its own when a change is ready.
+
+```bash
+claude plugin marketplace add Chisu-Technologies/sentinel-dev
+```
+
+```bash
+claude plugin install sentinel@chisu-sentinel
+```
+
+Use the plugin or the `claude mcp add` line, not both: each adds a server named
+`sentinel`.
+
 Or let `sentinel agents` add it to every agent it finds. Claude Code, Codex and
 Gemini CLI get it through their own `mcp add` command, so their settings keep the
 format they expect. Cursor has no such command: `~/.cursor/mcp.json` is edited, and

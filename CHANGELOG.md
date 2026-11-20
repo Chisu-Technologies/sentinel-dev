@@ -14,6 +14,9 @@ Notable changes are listed here, following
   app from the Microsoft Store, of the other Windows installer and of macOS.
 - `sentinel agents` also adds Sentinel to Codex when only the Codex or ChatGPT desktop app is
   installed, with no `codex` command: those apps read the same `~/.codex/config.toml`.
+- A Claude Code plugin, `sentinel@chisu-sentinel`, in this repository's marketplace: the
+  `sentinel mcp` server and three skills (`verify`, `verify-pr`, `runs`) that tell Claude Code
+  when to send a change to Sentinel and how to follow it until its pull request.
 
 ## [0.5.0] - 2026-11-19
 
