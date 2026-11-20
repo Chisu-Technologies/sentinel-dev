@@ -7,6 +7,8 @@ Notable changes are listed here, following
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-11-20
+
 ### Fixed
 
 - `sentinel login` with no address signs in to the Sentinel that `sentinel up` installed on
