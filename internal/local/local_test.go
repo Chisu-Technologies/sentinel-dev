@@ -139,7 +139,7 @@ func TestTheSecretsAreWrittenOnceAndNeverPrinted(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, name := range []string{"SENTINEL_DB_PASSWORD=", "SENTINEL_MASTER_KEY=", "SENTINEL_MASTER_KEY_GENERATION=1", "SENTINEL_ADMIN_KEY=", "SENTINEL_ARCHITECT_HMAC_KEY=", "SENTINEL_SIGNING_KEY="} {
+	for _, name := range []string{"SENTINEL_DB_PASSWORD=", "SENTINEL_MASTER_KEY=", "SENTINEL_MASTER_KEY_GENERATION=1", "SENTINEL_ADMIN_KEY=", "SENTINEL_ARCHITECT_HMAC_KEY=", "SENTINEL_SIGNING_KEY=", "SENTINEL_TOOL_BROKER_SIGNING_KEY="} {
 		if !strings.Contains(string(first), name) {
 			t.Errorf("%s missing from the secrets", name)
 		}
@@ -251,6 +251,47 @@ func TestAnUpReplacesASigningKeyTheServerCannotUseAndKeepsTheRest(t *testing.T) 
 	}
 	if envValue(t, install.Dir, "SENTINEL_SIGNING_KEY") != repaired || strings.Contains(progress.String(), "Replaced") {
 		t.Error("a usable signing key was replaced")
+	}
+}
+
+// 0.6.0: the MCP servers an admin adds are reached through the API's tool
+// broker, whose capabilities this key signs. An installation made before has
+// none; an up adds it once and never replaces it.
+func TestAnUpAddsTheToolBrokerKeyToAnOlderInstallationOnce(t *testing.T) {
+	d := withOwner(freshDocker(), owner)
+	install, progress := newInstall(t, d)
+	if _, err := install.Up(context.Background(), "you@example.com", false); err != nil {
+		t.Fatal(err)
+	}
+	if envValue(t, install.Dir, "SENTINEL_TOOL_BROKER_SIGNING_KEY") == "" {
+		t.Fatal("a new installation got no tool broker key")
+	}
+	if err := install.setEnv("SENTINEL_TOOL_BROKER_SIGNING_KEY", ""); err != nil {
+		t.Fatal(err)
+	}
+	master := envValue(t, install.Dir, "SENTINEL_MASTER_KEY")
+
+	progress.Reset()
+	if _, err := install.Up(context.Background(), "", false); err != nil {
+		t.Fatal(err)
+	}
+	added := envValue(t, install.Dir, "SENTINEL_TOOL_BROKER_SIGNING_KEY")
+	if len(added) < 40 {
+		t.Errorf("the added key is too short: %d characters", len(added))
+	}
+	if envValue(t, install.Dir, "SENTINEL_MASTER_KEY") != master {
+		t.Error("adding the tool broker key changed another secret")
+	}
+	if !strings.Contains(progress.String(), "MCP servers") || strings.Contains(progress.String(), added) {
+		t.Errorf("progress = %q", progress.String())
+	}
+
+	progress.Reset()
+	if _, err := install.Up(context.Background(), "", false); err != nil {
+		t.Fatal(err)
+	}
+	if envValue(t, install.Dir, "SENTINEL_TOOL_BROKER_SIGNING_KEY") != added || strings.Contains(progress.String(), "MCP servers") {
+		t.Error("an existing tool broker key was replaced")
 	}
 }
 

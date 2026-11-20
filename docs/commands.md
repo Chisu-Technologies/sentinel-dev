@@ -6,14 +6,14 @@
 
 | Command | What it does |
 | --- | --- |
-| `sentinel agents` | Add `sentinel mcp` to the coding agents on this machine (Claude Code, Codex, Gemini CLI, Cursor). In Claude Code it also adds a hook that, when Claude Code stops at its limit, shows a desktop notification suggesting `sentinel run --from-claude-code`. `--dry-run` says what it would add and changes nothing. |
+| `sentinel agents` | Add `sentinel mcp` to the coding agents on this machine (Claude Code, Codex, Gemini CLI, Cursor) and to the Claude desktop app. In Claude Code it also adds a hook that, when Claude Code stops at its limit, shows a desktop notification suggesting `sentinel run --from-claude-code`. `--dry-run` says what it would add and changes nothing. |
 | `sentinel cancel <run id>` | Stop a run of a Sentinel server. |
 | `sentinel down` | Stop Sentinel on this machine. Its data stays. |
 | `sentinel backup` | Back up the data of Sentinel on this machine: its three databases, each dump checked by a `SHA256SUMS`, in a new folder under the installation's `backups` (or `--out`). It works with Sentinel running or stopped and deletes no older backup. The master key stays in the installation's `.env`, which the backup does not carry; keep that file with it. |
 | `sentinel restore --yes <backup>` | Replace the data of Sentinel on this machine with a backup. It checks the backup's sums before touching anything, stops Sentinel, restores the three databases and leaves it stopped; `sentinel up` starts it again. It needs the same `.env` the backup was taken with. |
 | `sentinel doctor` | Check that git, the GitHub CLI and ssh are installed on this machine, and that `gh` is signed in to github.com. |
 | `sentinel doctor <destination>` | Check a server before installing on it: operating system, architecture, privileges, systemd, memory and Docker. It only reads: it installs and configures nothing on the server. |
-| `sentinel login --chatgpt` | Let your Sentinel use your ChatGPT plan. You sign in with ChatGPT in your browser, on this machine, and the sign-in goes to the Sentinel you are signed in to. Only a Sentinel you run yourself (`sentinel up`) takes it. Its model calls use your plan's allowance, not an API key. |
+| `sentinel login --chatgpt` | Let your Sentinel use your ChatGPT plan. You sign in with ChatGPT in your browser, on this machine, and the sign-in goes to the Sentinel you are signed in to. Only a Sentinel you run yourself (`sentinel up`) takes it. Its model calls use your plan's allowance, not an API key. If this command is not signed in yet, it first signs in to the Sentinel on this machine, approved in its panel. Lending a plan needs ChatGPT Plus or Pro. |
 | `sentinel models add <name> <address>` | Let Sentinel on this machine use a model served here, such as Ollama (`http://localhost:11434/v1`) or LM Studio (`http://localhost:1234/v1`). `localhost` becomes `host.docker.internal`, the name Sentinel's containers give this machine; plain `http://` is only for this machine or a private address. It restarts Sentinel's API and broker, and the model shows in Settings > API keys under Operator OpenAI-Compatible Endpoint. `sentinel models` lists them and `sentinel models remove <name>` removes one. Only a Sentinel you run yourself takes a model on your machine. |
 | `sentinel mcp` | Serve Sentinel's tools to your coding agent (Claude Code, Codex, Cursor and others) over MCP. The agent starts it; you do not run it by hand. |
 | `sentinel pull <run id>` | Fetch the pull request of a run into the local branch `sentinel/<run id>` and switch to it. |
@@ -218,10 +218,30 @@ In Claude Code:
 claude mcp add --transport stdio sentinel -- sentinel mcp
 ```
 
+Or install the Sentinel plugin, which brings the same server and teaches Claude Code
+when to use it: `/sentinel:verify` sends the change you made, `/sentinel:verify-pr`
+checks a pull request, and `/sentinel:runs` shows the latest runs. Claude Code also
+uses them on its own when a change is ready.
+
+```bash
+claude plugin marketplace add Chisu-Technologies/sentinel-dev
+```
+
+```bash
+claude plugin install sentinel@chisu-sentinel
+```
+
+Use the plugin or the `claude mcp add` line, not both: each adds a server named
+`sentinel`.
+
 Or let `sentinel agents` add it to every agent it finds. Claude Code, Codex and
 Gemini CLI get it through their own `mcp add` command, so their settings keep the
 format they expect. Cursor has no such command: `~/.cursor/mcp.json` is edited, and
-the file it had is kept next to it as `mcp.json.before-sentinel`. An agent that
+the file it had is kept next to it as `mcp.json.before-sentinel`. The Claude desktop app has no such command either: its
+`claude_desktop_config.json` is edited the same way, in the folder the app uses
+(`%LOCALAPPDATA%\Claude-Data\<package>` for the app from the Microsoft Store,
+`%APPDATA%\Claude` for the other Windows installer, `~/Library/Application Support/Claude`
+on macOS). The app loads Sentinel when it starts again. An agent that
 already has Sentinel is left as it is, and a file that is not plain JSON is never
 rewritten. Restart an agent that is open so it loads Sentinel.
 
@@ -235,6 +255,8 @@ argument `mcp`. The server it reaches is the one of `sentinel login`, or
 | `sentinel_run_task` | Send a task with the work in the agent's folder that is not on GitHub yet. Returns the run id at once. |
 | `sentinel_run_status` | Where a run is and, once it ends, its pull request, verdict, tests and cost. Read-only. |
 | `sentinel_list_runs` | The latest runs. Read-only. |
+| `sentinel_list_repos` | The repositories connected to Sentinel, and how far its Brain has read each one. Read-only. |
+| `sentinel_brain` | What the Brain knows of one repository: the commit it read, its files with their headings, and the digest of each part. Read-only. |
 | `sentinel_stop_run` | Stop one run that has not ended. |
 
 Each tool runs the command you would type, with `--json`, so the agent gets what a

@@ -6,11 +6,14 @@ import (
 	"flag"
 	"fmt"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/Chisu-Technologies/sentinel-dev/internal/local"
 	"github.com/Chisu-Technologies/sentinel-dev/internal/server"
 )
 
@@ -34,6 +37,15 @@ func runLogin(ctx context.Context, args []string, env Env) int {
 			fmt.Fprintln(env.Stderr, "sentinel login --chatgpt uses the server you are already signed in to; sign in with sentinel login --url first")
 			return ExitUsage
 		}
+		// One command, no prerequisite to guess: a CLI that is not signed in yet
+		// signs in to the Sentinel `up` runs on this machine first.
+		if panel, ok := unsignedLocalInstall(env); ok {
+			fmt.Fprintf(env.Stdout, "First, this command signs in to the Sentinel on this machine (%s).\n", panel)
+			if code := signInTo(ctx, env, panel); code != ExitOK {
+				return code
+			}
+			fmt.Fprintln(env.Stdout)
+		}
 		return runLoginChatGPT(ctx, env)
 	}
 	raw := *address
@@ -44,6 +56,39 @@ func runLogin(ctx context.Context, args []string, env Env) int {
 		fmt.Fprintln(env.Stderr, "sentinel login needs the address of your Sentinel server: sentinel login --url https://sentinel.example.com")
 		return ExitUsage
 	}
+	return signInTo(ctx, env, raw)
+}
+
+// unsignedLocalInstall reports the panel of this machine's installation when
+// the CLI has no server to talk to yet: no SENTINEL_URL, no saved sign-in.
+func unsignedLocalInstall(env Env) (string, bool) {
+	if env.getenv("SENTINEL_URL") != "" || env.getenv("SENTINEL_API_KEY") != "" {
+		return "", false
+	}
+	if _, ok, err := loadCredentials(env); err != nil || ok {
+		return "", false
+	}
+	// Env.HomeDir, not the process's home: a test leaves it empty and never sees
+	// the machine's own installation.
+	dir := env.getenv("SENTINEL_HOME")
+	if dir == "" {
+		if env.HomeDir == "" {
+			return "", false
+		}
+		dir = filepath.Join(env.HomeDir, ".sentinel", "local")
+	}
+	// `up` writes the installation's secrets there first; without them there is no local Sentinel.
+	if _, err := os.Stat(filepath.Join(dir, ".env")); err != nil {
+		return "", false
+	}
+	if env.LocalPanelURL != "" {
+		return env.LocalPanelURL, true
+	}
+	return local.PanelURL, true
+}
+
+// signInTo signs this CLI in to the server at raw, approved in its panel.
+func signInTo(ctx context.Context, env Env, raw string) int {
 	httpClient := env.HTTP
 	if httpClient == nil {
 		httpClient = &http.Client{Timeout: 30 * time.Second}
@@ -63,6 +108,7 @@ func runLogin(ctx context.Context, args []string, env Env) int {
 		return fail("%v", err)
 	}
 	fmt.Fprintf(env.Stdout, "Open this page and approve the code %s:\n\n  %s\n\nWaiting for the approval...\n", start.UserCode, client.ApprovalURL(start.UserCode))
+	openInBrowser(ctx, env, client.ApprovalURL(start.UserCode))
 
 	wait := time.Duration(start.ExpiresIn) * time.Second
 	if wait <= 0 || wait > maxLoginWait {

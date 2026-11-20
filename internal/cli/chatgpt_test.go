@@ -38,6 +38,8 @@ type fakeOpenAIAuth struct {
 	challenge string
 	nonce     string
 	opened    []url.Values
+	// refusals is how many code exchanges answer invalid_grant before one succeeds.
+	refusals int
 }
 
 func newFakeOpenAIAuth(t *testing.T) *fakeOpenAIAuth {
@@ -65,6 +67,12 @@ func newFakeOpenAIAuth(t *testing.T) *fakeOpenAIAuth {
 		sum := sha256.Sum256([]byte(r.PostForm.Get("code_verifier")))
 		if base64.RawURLEncoding.EncodeToString(sum[:]) != f.challenge {
 			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		if f.refusals > 0 {
+			f.refusals--
+			w.WriteHeader(http.StatusBadRequest)
+			io.WriteString(w, `{"error":"invalid_grant"}`)
 			return
 		}
 		enc := func(v any) string { b, _ := json.Marshal(v); return base64.RawURLEncoding.EncodeToString(b) }
@@ -97,6 +105,10 @@ func (b *browser) Run(_ context.Context, cmd execx.Command) (execx.Result, error
 		return execx.Result{}, err
 	}
 	q := page.Query()
+	if q.Get("code_challenge") == "" {
+		// Another page, such as the approval of `login --url`: not OpenAI's.
+		return execx.Result{}, nil
+	}
 	b.auth.mu.Lock()
 	b.auth.challenge, b.auth.nonce = q.Get("code_challenge"), q.Get("nonce")
 	b.auth.opened = append(b.auth.opened, q)
@@ -216,5 +228,93 @@ func TestLoginWithChatGPTNeedsASentinelToHandItTo(t *testing.T) {
 	})
 	if code != ExitFailed || len(auth.opened) != 0 {
 		t.Fatalf("code %d, opened %d pages; stderr %s", code, len(auth.opened), stderr.String())
+	}
+}
+
+// OpenAI registers the client and then refuses the exchange with a bare invalid_grant when the
+// person's workspace and plan cannot lend ChatGPT plan usage. Its documentation says to keep the
+// issued client and start again with it; only that returning sign-in shows the person why.
+func TestARefusedExchangeKeepsTheIssuedClientAndSaysWhatToCheck(t *testing.T) {
+	auth := newFakeOpenAIAuth(t)
+	auth.refusals = 1
+	var received []map[string]any
+	sentinel := fakeSentinel(t, &received)
+	dir := t.TempDir()
+
+	first := chatgptLogin(t, auth, sentinel.URL, dir)
+	if first.code != ExitFailed || len(received) != 0 {
+		t.Fatalf("first %+v, server received %d", first, len(received))
+	}
+	if !strings.Contains(first.stderr, "invalid_grant") || !strings.Contains(first.stderr, "ChatGPT Plus or Pro") {
+		t.Errorf("stderr = %s", first.stderr)
+	}
+	kept, err := os.ReadFile(filepath.Join(dir, "sentinel", "chatgpt.json"))
+	if err != nil || !strings.Contains(string(kept), "oaiapp_issued") {
+		t.Fatalf("kept %s (%v)", kept, err)
+	}
+
+	second := chatgptLogin(t, auth, sentinel.URL, dir)
+	if second.code != ExitOK || len(received) != 1 {
+		t.Fatalf("second %+v", second)
+	}
+	if got := auth.opened[1].Get("client_id"); got != "oaiapp_issued" {
+		t.Errorf("the second sign-in asked as %q, not the issued client", got)
+	}
+}
+
+// One command for the person: with no sign-in yet and a Sentinel that `up`
+// installed here, login --chatgpt signs in to that one first.
+func TestLoginWithChatGPTSignsInToTheSentinelOnThisMachineFirst(t *testing.T) {
+	auth := newFakeOpenAIAuth(t)
+	l := newLoginServer(t, 0, "")
+	// The local panel approves the sign-in and then receives the ChatGPT session,
+	// carried with the key that sign-in saved.
+	var sessionAuth []string
+	panel := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPut && r.URL.Path == "/api/org/inference/chatgpt-session" {
+			sessionAuth = append(sessionAuth, r.Header.Get("Authorization"))
+			io.WriteString(w, `{"status":"signed_in","account":"p@example.com"}`)
+			return
+		}
+		l.Config.Handler.ServeHTTP(w, r)
+	}))
+	t.Cleanup(panel.Close)
+	home := t.TempDir()
+	if err := os.WriteFile(filepath.Join(home, ".env"), []byte("x"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	var stdout, stderr bytes.Buffer
+	code := Run(context.Background(), []string{"login", "--chatgpt"}, Env{
+		Stdout: &stdout, Stderr: &stderr, Runner: &browser{auth: auth},
+		Build:           buildinfo.Info{Version: "v0.4.0", OS: "linux", Arch: "amd64"},
+		Getenv:          func(name string) string { return map[string]string{"SENTINEL_HOME": home}[name] },
+		Sleep:           func(ctx context.Context, _ time.Duration) error { return ctx.Err() },
+		ConfigDir:       t.TempDir(),
+		ChatGPTAuthBase: auth.URL,
+		LocalPanelURL:   panel.URL,
+	})
+	if code != ExitOK {
+		t.Fatalf("exit %d; stdout %s; stderr %s", code, stdout.String(), stderr.String())
+	}
+	if !strings.Contains(stdout.String(), "signs in to the Sentinel on this machine ("+panel.URL+")") {
+		t.Errorf("stdout = %s", stdout.String())
+	}
+	if len(sessionAuth) != 1 || sessionAuth[0] != "Bearer "+loginKey {
+		t.Fatalf("ChatGPT sessions received with %v", sessionAuth)
+	}
+}
+
+func TestLoginWithChatGPTWithoutAnyServerStillSaysWhatItNeeds(t *testing.T) {
+	auth := newFakeOpenAIAuth(t)
+	var stdout, stderr bytes.Buffer
+	code := Run(context.Background(), []string{"login", "--chatgpt"}, Env{
+		Stdout: &stdout, Stderr: &stderr, Runner: &browser{auth: auth},
+		Getenv: func(name string) string {
+			return map[string]string{"SENTINEL_HOME": t.TempDir()}[name]
+		},
+		ConfigDir: t.TempDir(), ChatGPTAuthBase: auth.URL,
+	})
+	if code != ExitFailed || !strings.Contains(stderr.String(), "sentinel login --url") || len(auth.opened) != 0 {
+		t.Fatalf("code %d opened %d stderr %s", code, len(auth.opened), stderr.String())
 	}
 }

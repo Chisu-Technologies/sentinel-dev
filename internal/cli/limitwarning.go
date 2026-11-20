@@ -34,7 +34,7 @@ func runLimitWarning(args []string, env Env) int {
 // for "rate_limit" that runs the subcommand above. Claude Code has no command
 // to add a hook, so the file is edited like Cursor's.
 func claudeCodeLimitAgent(env Env, dry bool, exe string) agentResult {
-	const label = "Claude Code limit warning"
+	const label = claudeCodeLimitLabel
 	if _, err := env.Runner.LookPath("claude"); err != nil {
 		return agentResult{Agent: label, Status: "not_installed"}
 	}

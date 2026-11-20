@@ -7,6 +7,47 @@ Notable changes are listed here, following
 
 ## [Unreleased]
 
+### Added
+
+- `sentinel agents` also adds Sentinel to the Claude desktop app, by editing its
+  `claude_desktop_config.json` after a backup, as it does for Cursor. It finds the folder of the
+  app from the Microsoft Store, of the other Windows installer and of macOS.
+- `sentinel agents` also adds Sentinel to Codex when only the Codex or ChatGPT desktop app is
+  installed, with no `codex` command: those apps read the same `~/.codex/config.toml`.
+- A Claude Code plugin, `sentinel@chisu-sentinel`, in this repository's marketplace: the
+  `sentinel mcp` server and three skills (`verify`, `verify-pr`, `runs`) that tell Claude Code
+  when to send a change to Sentinel and how to follow it until its pull request.
+- [INSTALL.md](INSTALL.md): the steps an AI agent follows when someone gives it this repository
+  and asks it to install Sentinel; the README and AGENTS.md point to it.
+- `sentinel mcp` has two more tools, `sentinel_list_repos` and `sentinel_brain`, so the agent can
+  ask which repositories Sentinel has and what its Brain knows of one. They need a Sentinel
+  that lets the key of `sentinel login` read them.
+- Your own MCP servers: in Settings > External tools, the Sentinel that `sentinel up` runs
+  takes any MCP server (on this machine, on your network or on the internet) and gives its
+  tools to the agents a task's contract allows. Tools that may change data start off.
+  Composio Connect works as one of them. See [docs/mcp-servers.md](docs/mcp-servers.md).
+- `sentinel up` writes the key that signs each run's access to those tools, and adds it
+  to an installation made before.
+
+### Changed
+
+- `sentinel agents` ends by saying what to do now: which agents have Sentinel, a few things to ask
+  them in your own words, and Sentinel's tools. In Claude Code, `/mcp` lists them.
+- `sentinel login --chatgpt` is one command: if this CLI has no sign-in yet and `sentinel up`
+  installed Sentinel here, it signs in to that one first, approved in its panel, then
+  continues with ChatGPT.
+- `sentinel login --url` opens the approval page in the browser too.
+- The server that `sentinel up` runs gives agents the MCP servers you add in Settings >
+  External tools, lets the key of `sentinel login` read your repositories and the Brain, and
+  carries containerd with the fix for CVE-2026-95839.
+
+### Fixed
+
+- `sentinel login --chatgpt` keeps the client OpenAI issued even when OpenAI refuses the code
+  exchange, as OpenAI asks, and says what to check: lending a ChatGPT plan needs ChatGPT Plus
+  or Pro on the chosen workspace. Signing in again then shows OpenAI's own reason instead of
+  registering a new client each time.
+
 ## [0.5.0] - 2026-11-19
 
 ### Added

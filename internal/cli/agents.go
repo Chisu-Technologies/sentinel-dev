@@ -25,11 +25,14 @@ type agentResult struct {
 // mcpServerName is the name every agent knows Sentinel by.
 const mcpServerName = "sentinel"
 
+// claudeCodeLimitLabel names the hook `agents` adds to Claude Code.
+const claudeCodeLimitLabel = "Claude Code limit warning"
+
 // runAgents adds `sentinel mcp` to the coding agents installed on this
 // machine. Where an agent has its own command for it (claude, codex, gemini),
 // that command does the writing, so its configuration keeps the format the
-// agent expects; Cursor has none, so its mcp.json is edited after a backup. An
-// agent that already has Sentinel is left as it is.
+// agent expects; Cursor and the Claude app have none, so their JSON file is
+// edited after a backup. An agent that already has Sentinel is left as it is.
 func runAgents(ctx context.Context, args []string, env Env) int {
 	fs := flag.NewFlagSet("agents", flag.ContinueOnError)
 	dry := fs.Bool("dry-run", false, "say what would be added, and change nothing")
@@ -53,15 +56,12 @@ func runAgents(ctx context.Context, args []string, env Env) int {
 				return err == nil && res.ExitCode == 0, err
 			},
 			[]string{"mcp", "add", "--transport", "stdio", "--scope", "user", mcpServerName, "--", exe, "mcp"}),
-		cliAgent(ctx, env, *dry, "Codex", "codex",
-			func() (bool, error) {
-				return fileMentions(env, ".codex/config.toml", "[mcp_servers."+mcpServerName+"]")
-			},
-			[]string{"mcp", "add", mcpServerName, "--", exe, "mcp"}),
+		codexAgent(ctx, env, *dry, exe),
 		cliAgent(ctx, env, *dry, "Gemini CLI", "gemini",
 			func() (bool, error) { return jsonHasServer(env, ".gemini/settings.json") },
 			[]string{"mcp", "add", "--scope", "user", mcpServerName, exe, "mcp"}),
 		cursorAgent(env, *dry, exe),
+		claudeAppAgent(env, *dry, exe),
 		claudeCodeLimitAgent(env, *dry, exe),
 	}
 
@@ -90,13 +90,38 @@ func runAgents(ctx context.Context, args []string, env Env) int {
 		}
 		fmt.Fprintln(env.Stdout, line)
 	}
-	switch {
-	case *dry:
+	if *dry {
 		fmt.Fprintln(env.Stdout, "\nNothing was changed: this was a dry run.")
-	default:
-		fmt.Fprintln(env.Stdout, "\nRestart an agent that is open so it loads Sentinel.")
+		return code
 	}
+	printReady(env, results)
 	return code
+}
+
+// printReady tells the person what they can do now, so a connected agent is
+// not a line they have to guess how to use.
+func printReady(env Env, results []agentResult) {
+	var ready []string
+	for _, r := range results {
+		// The limit warning is a hook of Claude Code, not an agent of its own.
+		if r.Agent != claudeCodeLimitLabel && (r.Status == "added" || r.Status == "already") {
+			ready = append(ready, r.Agent)
+		}
+	}
+	if len(ready) == 0 {
+		fmt.Fprintln(env.Stdout, "\nNo coding agent was found. Install one (Claude Code, Codex, Gemini CLI, Cursor) and run sentinel agents again.")
+		return
+	}
+	var tools []string
+	for _, t := range mcpTools(env) {
+		tools = append(tools, t.Name)
+	}
+	fmt.Fprintf(env.Stdout, "\nReady in %s. Open a new session (restart an app that is open) and ask in your own words, for example:\n", strings.Join(ready, ", "))
+	fmt.Fprintln(env.Stdout, `  "Send this change to Sentinel"`)
+	fmt.Fprintln(env.Stdout, `  "Ask Sentinel to verify pull request 12"`)
+	fmt.Fprintln(env.Stdout, `  "How are my Sentinel runs going?"`)
+	fmt.Fprintf(env.Stdout, "The agent answers with Sentinel's tools: %s.\n", strings.Join(tools, ", "))
+	fmt.Fprintln(env.Stdout, "In Claude Code, /mcp lists the sentinel server and its tools.")
 }
 
 // cliAgent adds Sentinel with the agent's own command.
@@ -124,6 +149,70 @@ func cliAgent(ctx context.Context, env Env, dry bool, label, program string, has
 	return agentResult{Agent: label, Status: "added"}
 }
 
+// codexAgent adds Sentinel to Codex. With the codex command, that command
+// does it. The Codex and ChatGPT desktop apps bring no command but read the
+// same ~/.codex/config.toml as the CLI (OpenAI: "The ChatGPT desktop app, Codex
+// CLI, and IDE extension share this configuration"), so then the file gets
+// Sentinel's table appended, after a backup, and nothing else in it changes.
+func codexAgent(ctx context.Context, env Env, dry bool, exe string) agentResult {
+	const label = "Codex"
+	has := func() (bool, error) {
+		return fileMentions(env, ".codex/config.toml", "[mcp_servers."+mcpServerName+"]")
+	}
+	if _, err := env.Runner.LookPath("codex"); err == nil {
+		return cliAgent(ctx, env, dry, label, "codex", has, []string{"mcp", "add", mcpServerName, "--", exe, "mcp"})
+	}
+	if env.HomeDir == "" {
+		return agentResult{Agent: label, Status: "not_installed"}
+	}
+	path := filepath.Join(env.HomeDir, ".codex", "config.toml")
+	info, err := os.Stat(path)
+	if err != nil {
+		return agentResult{Agent: label, Status: "not_installed"}
+	}
+	present, err := has()
+	if err != nil {
+		return agentResult{Agent: label, Status: "failed", Detail: err.Error()}
+	}
+	if present {
+		return agentResult{Agent: label, Status: "already"}
+	}
+	if dry {
+		return agentResult{Agent: label, Status: "would_add", Detail: "edit " + path}
+	}
+	original, err := os.ReadFile(path)
+	if err != nil {
+		return agentResult{Agent: label, Status: "failed", Detail: err.Error()}
+	}
+	mode := info.Mode().Perm()
+	if err := os.WriteFile(path+".before-sentinel", original, mode); err != nil {
+		return agentResult{Agent: label, Status: "failed", Detail: err.Error()}
+	}
+	table := "[mcp_servers." + mcpServerName + "]\ncommand = " + tomlString(exe) + "\nargs = [\"mcp\"]\n"
+	sep := "\n"
+	if len(original) == 0 {
+		sep = ""
+	} else if !bytes.HasSuffix(original, []byte("\n")) {
+		sep = "\n\n"
+	}
+	if err := os.WriteFile(path, append(original, []byte(sep+table)...), mode); err != nil {
+		return agentResult{Agent: label, Status: "failed", Detail: err.Error()}
+	}
+	return agentResult{Agent: label, Status: "added", Detail: "the previous file is " + path + ".before-sentinel"}
+}
+
+// tomlString writes a TOML string. A literal string keeps a Windows path's
+// backslashes as they are, the way the Codex app writes its own paths; one
+// that a literal string cannot hold is written as a basic string, whose
+// escapes are JSON's.
+func tomlString(s string) string {
+	if !strings.ContainsAny(s, "'\r\n") {
+		return "'" + s + "'"
+	}
+	quoted, _ := json.Marshal(s)
+	return string(quoted)
+}
+
 // cursorAgent edits ~/.cursor/mcp.json, the global file Cursor reads; Cursor
 // has no command to add a server.
 func cursorAgent(env Env, dry bool, exe string) agentResult {
@@ -147,6 +236,56 @@ func cursorAgent(env Env, dry bool, exe string) agentResult {
 		doc["mcpServers"] = servers
 		return true
 	})
+}
+
+// claudeAppAgent adds Sentinel to the Claude desktop app, which reads local MCP
+// servers from claude_desktop_config.json and has no command to add one. The
+// app installed from the Microsoft Store keeps its data, that file included,
+// in %LOCALAPPDATA%\Claude-Data\<package>; the other Windows installer uses
+// %APPDATA%\Claude, and macOS ~/Library/Application Support/Claude. The first
+// of those folders that exists is the app's.
+func claudeAppAgent(env Env, dry bool, exe string) agentResult {
+	const label = "Claude app"
+	path := claudeAppConfig(env)
+	if path == "" {
+		return agentResult{Agent: label, Status: "not_installed"}
+	}
+	return editJSONSettings(label, path, dry, func(doc map[string]any) bool {
+		servers, _ := doc["mcpServers"].(map[string]any)
+		if servers == nil {
+			servers = map[string]any{}
+		}
+		if _, ok := servers[mcpServerName]; ok {
+			return false
+		}
+		servers[mcpServerName] = map[string]any{"command": exe, "args": []string{"mcp"}}
+		doc["mcpServers"] = servers
+		return true
+	})
+}
+
+func claudeAppConfig(env Env) string {
+	const file = "claude_desktop_config.json"
+	isDir := func(p string) bool {
+		info, err := os.Stat(p)
+		return err == nil && info.IsDir()
+	}
+	if local := env.getenv("LOCALAPPDATA"); local != "" {
+		matches, _ := filepath.Glob(filepath.Join(local, "Claude-Data", "*", file))
+		if len(matches) > 0 {
+			return matches[0]
+		}
+	}
+	if roaming := env.getenv("APPDATA"); roaming != "" && isDir(filepath.Join(roaming, "Claude")) {
+		return filepath.Join(roaming, "Claude", file)
+	}
+	if env.HomeDir != "" {
+		mac := filepath.Join(env.HomeDir, "Library", "Application Support", "Claude")
+		if isDir(mac) {
+			return filepath.Join(mac, file)
+		}
+	}
+	return ""
 }
 
 // editJSONSettings changes an agent's JSON settings file, which the agent has

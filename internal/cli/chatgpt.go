@@ -74,6 +74,23 @@ func runLoginChatGPT(ctx context.Context, env Env) int {
 		if ctx.Err() != nil {
 			return fail("nobody signed in with ChatGPT in time; run sentinel login --chatgpt again")
 		}
+		var refused *chatgpt.ExchangeError
+		if errors.As(err, &refused) {
+			// The registration stands even when the exchange fails, and OpenAI asks
+			// to sign in again with the client it issued. Only that returning sign-in
+			// shows the person what is missing.
+			if host.ClientID == "" && refused.ClientID != "" {
+				host.ClientID = refused.ClientID
+				if err := saveChatGPTHost(path, host); err != nil {
+					return fail("could not keep OpenAI's client id in %s: %v", path, err)
+				}
+			}
+			if refused.Code == "invalid_grant" {
+				return fail("OpenAI did not grant the sign-in (invalid_grant). Lending your ChatGPT plan needs " +
+					"ChatGPT Plus or Pro on the workspace you choose. Run sentinel login --chatgpt again: " +
+					"OpenAI's page then says what is missing")
+			}
+		}
 		return fail("the ChatGPT sign-in did not finish: %v", err)
 	}
 	if host.ClientID == "" {
