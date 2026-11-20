@@ -29,6 +29,15 @@ Notable changes are listed here, following
 - `sentinel up` writes the key that signs each run's access to those tools, and adds it
   to an installation made before.
 
+### Changed
+
+- `sentinel agents` ends by saying what to do now: which agents have Sentinel, a few things to ask
+  them in your own words, and Sentinel's tools. In Claude Code, `/mcp` lists them.
+- `sentinel login --chatgpt` is one command: if this CLI has no sign-in yet and `sentinel up`
+  installed Sentinel here, it signs in to that one first, approved in its panel, then
+  continues with ChatGPT.
+- `sentinel login --url` opens the approval page in the browser too.
+
 ### Fixed
 
 - `sentinel login --chatgpt` keeps the client OpenAI issued even when OpenAI refuses the code

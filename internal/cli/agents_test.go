@@ -312,3 +312,35 @@ func TestAgentsFindsTheClaudeAppOfTheOtherWindowsInstallerAndOfMacOS(t *testing.
 		t.Errorf("macOS install: %v", mac)
 	}
 }
+
+// A connected agent is useless if the person cannot tell how to use it: the
+// text output names the agents that have Sentinel, what to ask, and the tools.
+func TestAgentsSaysWhatToAskTheConnectedAgents(t *testing.T) {
+	home := t.TempDir()
+	runner := &execxtest.Fake{Results: map[string]execx.Result{
+		"claude mcp get sentinel": {ExitCode: 1, Stderr: "No MCP server found"},
+	}}
+	var stdout, stderr bytes.Buffer
+	code := Run(context.Background(), []string{"agents"}, Env{
+		Stdout: &stdout, Stderr: &stderr, Runner: runner,
+		Build: buildinfo.Info{Version: "v0.0.0-test"}, HomeDir: home, Executable: testExe,
+		Getenv: func(string) string { return "" },
+	})
+	if code != ExitOK {
+		t.Fatalf("exit %d: %s", code, stderr.String())
+	}
+	out := stdout.String()
+	for _, want := range []string{
+		"Ready in Claude Code, Codex, Gemini CLI.",
+		`"Send this change to Sentinel"`,
+		"sentinel_run_task", "sentinel_verify_pull_request", "sentinel_run_status",
+		"/mcp lists the sentinel server",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %q in:\n%s", want, out)
+		}
+	}
+	if strings.Contains(out, "Ready in Claude Code limit warning") || strings.Contains(out, ", Claude Code limit warning") {
+		t.Errorf("the hook was named as an agent:\n%s", out)
+	}
+}

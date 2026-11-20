@@ -67,6 +67,9 @@ type Env struct {
 	// ChatGPTAuthBase is OpenAI's authorization server for `login --chatgpt`.
 	// Empty means OpenAI's own; only a test sets another.
 	ChatGPTAuthBase string
+	// LocalPanelURL is the panel of the Sentinel that `up` runs on this
+	// machine. Empty means local.PanelURL; only a test sets another.
+	LocalPanelURL string
 	// Terminal reports whether a person types the input, for `session`. Nil
 	// means Stdin is checked; only a test sets it.
 	Terminal func() bool

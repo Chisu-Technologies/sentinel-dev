@@ -25,6 +25,9 @@ type agentResult struct {
 // mcpServerName is the name every agent knows Sentinel by.
 const mcpServerName = "sentinel"
 
+// claudeCodeLimitLabel names the hook `agents` adds to Claude Code.
+const claudeCodeLimitLabel = "Claude Code limit warning"
+
 // runAgents adds `sentinel mcp` to the coding agents installed on this
 // machine. Where an agent has its own command for it (claude, codex, gemini),
 // that command does the writing, so its configuration keeps the format the
@@ -87,13 +90,38 @@ func runAgents(ctx context.Context, args []string, env Env) int {
 		}
 		fmt.Fprintln(env.Stdout, line)
 	}
-	switch {
-	case *dry:
+	if *dry {
 		fmt.Fprintln(env.Stdout, "\nNothing was changed: this was a dry run.")
-	default:
-		fmt.Fprintln(env.Stdout, "\nRestart an agent that is open so it loads Sentinel.")
+		return code
 	}
+	printReady(env, results)
 	return code
+}
+
+// printReady tells the person what they can do now, so a connected agent is
+// not a line they have to guess how to use.
+func printReady(env Env, results []agentResult) {
+	var ready []string
+	for _, r := range results {
+		// The limit warning is a hook of Claude Code, not an agent of its own.
+		if r.Agent != claudeCodeLimitLabel && (r.Status == "added" || r.Status == "already") {
+			ready = append(ready, r.Agent)
+		}
+	}
+	if len(ready) == 0 {
+		fmt.Fprintln(env.Stdout, "\nNo coding agent was found. Install one (Claude Code, Codex, Gemini CLI, Cursor) and run sentinel agents again.")
+		return
+	}
+	var tools []string
+	for _, t := range mcpTools(env) {
+		tools = append(tools, t.Name)
+	}
+	fmt.Fprintf(env.Stdout, "\nReady in %s. Open a new session (restart an app that is open) and ask in your own words, for example:\n", strings.Join(ready, ", "))
+	fmt.Fprintln(env.Stdout, `  "Send this change to Sentinel"`)
+	fmt.Fprintln(env.Stdout, `  "Ask Sentinel to verify pull request 12"`)
+	fmt.Fprintln(env.Stdout, `  "How are my Sentinel runs going?"`)
+	fmt.Fprintf(env.Stdout, "The agent answers with Sentinel's tools: %s.\n", strings.Join(tools, ", "))
+	fmt.Fprintln(env.Stdout, "In Claude Code, /mcp lists the sentinel server and its tools.")
 }
 
 // cliAgent adds Sentinel with the agent's own command.
