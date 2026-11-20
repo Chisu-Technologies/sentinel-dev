@@ -192,9 +192,10 @@
     refusal, a missing variable or an error from the server, `2` when the command line
     was wrong.
 - `sentinel update` reads the latest release of this repository on GitHub. The archive
-  must match `SHA256SUMS`, and when `cosign` is installed, `SHA256SUMS` must carry the
-  signature of the release workflow; `SENTINEL_REQUIRE_SIGNATURE=1` stops the update
-  when `cosign` is missing. The new binary is written beside the old one and renamed
+  must match `SHA256SUMS`, and it must have been built by the release workflow, as the
+  installers check: with `gh` signed in, GitHub's attestation of the archive; otherwise,
+  when `cosign` is installed, its signature of `SHA256SUMS`. `SENTINEL_REQUIRE_SIGNATURE=1`
+  stops the update when neither is there. The new binary is written beside the old one and renamed
   into place, so an interrupted update leaves the old one whole. A development build is
   not updated: install a release with the installer.
   - Exit status: `0` when it updated, when this is the latest release, or with

@@ -1,7 +1,8 @@
 // Package update replaces the running sentinel with a newer release, after the
-// same checks as the one-line installer: the archive must match SHA256SUMS,
-// and SHA256SUMS must carry the signature of this repository's release
-// workflow whenever cosign is installed to check it.
+// same checks as the one-line installers: the archive must match SHA256SUMS,
+// and it must have been built by this repository's release workflow whenever
+// something here can check that: GitHub's attestation of the archive, through a
+// signed-in gh, or else cosign's signature of SHA256SUMS.
 package update
 
 import (
@@ -118,9 +119,9 @@ type Options struct {
 	GOOS, GOARCH string
 	// Executable is the binary to replace.
 	Executable string
-	// Runner runs cosign, when it is installed.
+	// Runner runs gh or cosign, when one of them can check the release.
 	Runner execx.Runner
-	// RequireSignature stops the update when cosign is not installed.
+	// RequireSignature stops the update when neither can.
 	RequireSignature bool
 	// TempDir holds the downloads. Empty means the system's.
 	TempDir string
@@ -129,6 +130,8 @@ type Options struct {
 // Result says what Install checked.
 type Result struct {
 	SignatureChecked bool
+	// CheckedBy is "GitHub" or "cosign" when the signature was checked.
+	CheckedBy string
 }
 
 // Install downloads release tag, checks it and replaces opts.Executable with
@@ -154,9 +157,17 @@ func (s Source) Install(ctx context.Context, tag string, opts Options) (Result, 
 	}
 
 	var result Result
-	if _, err := opts.Runner.LookPath("cosign"); err != nil {
+	// The gh that Sentinel already needs checks GitHub's attestation of the
+	// archive, but only once signed in: a gh without a session answers nothing,
+	// so it counts as absent rather than as a failed check.
+	if ghSignedIn(ctx, opts.Runner) {
+		if err := verifyAttestation(ctx, opts, archive, asset); err != nil {
+			return Result{}, err
+		}
+		result = Result{SignatureChecked: true, CheckedBy: "GitHub"}
+	} else if _, err := opts.Runner.LookPath("cosign"); err != nil {
 		if opts.RequireSignature {
-			return Result{}, errors.New("SENTINEL_REQUIRE_SIGNATURE is set and cosign is not installed. Nothing was changed")
+			return Result{}, errors.New("SENTINEL_REQUIRE_SIGNATURE is set and there is no signed-in gh or cosign to check it. Nothing was changed")
 		}
 	} else {
 		bundle, err := s.get(ctx, base+"SHA256SUMS.sigstore.json", 1<<20)
@@ -166,7 +177,7 @@ func (s Source) Install(ctx context.Context, tag string, opts Options) (Result, 
 		if err := verifySignature(ctx, opts, sums, bundle); err != nil {
 			return Result{}, err
 		}
-		result.SignatureChecked = true
+		result = Result{SignatureChecked: true, CheckedBy: "cosign"}
 	}
 
 	want := listed(sums, asset)
@@ -208,6 +219,39 @@ func listed(sums []byte, name string) string {
 		}
 	}
 	return ""
+}
+
+func ghSignedIn(ctx context.Context, runner execx.Runner) bool {
+	if _, err := runner.LookPath("gh"); err != nil {
+		return false
+	}
+	res, err := runner.Run(ctx, execx.Command{Name: "gh", Args: []string{"auth", "status"}})
+	return err == nil && res.ExitCode == 0
+}
+
+// verifyAttestation asks GitHub whether the release workflow of Repo, on a
+// runner GitHub hosts, built archive, with the arguments the installers use.
+func verifyAttestation(ctx context.Context, opts Options, archive []byte, asset string) error {
+	dir, err := os.MkdirTemp(opts.TempDir, "sentinel-update-")
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(dir)
+	path := filepath.Join(dir, asset)
+	if err := os.WriteFile(path, archive, 0o600); err != nil {
+		return err
+	}
+	res, err := opts.Runner.Run(ctx, execx.Command{Name: "gh", Args: []string{
+		"attestation", "verify", path,
+		"--repo", Repo,
+		"--cert-identity-regex", signerPattern,
+		"--cert-oidc-issuer", signerIssuer,
+		"--deny-self-hosted-runners",
+	}})
+	if err != nil || res.ExitCode != 0 {
+		return fmt.Errorf("GitHub has no valid attestation that the release workflow of %s built %s. Nothing was changed", Repo, asset)
+	}
+	return nil
 }
 
 func verifySignature(ctx context.Context, opts Options, sums, bundle []byte) error {

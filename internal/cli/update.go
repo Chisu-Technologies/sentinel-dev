@@ -77,10 +77,13 @@ func runUpdate(ctx context.Context, args []string, env Env) int {
 		fmt.Fprintf(env.Stderr, "sentinel: %v\n", err)
 		return ExitFailed
 	}
-	if result.SignatureChecked {
+	switch {
+	case result.CheckedBy == "GitHub":
+		fmt.Fprintf(env.Stdout, "Signature checked with GitHub: built by the release workflow of %s.\n", update.Repo)
+	case result.SignatureChecked:
 		fmt.Fprintf(env.Stdout, "Signature checked: built by the release workflow of %s.\n", update.Repo)
-	} else {
-		fmt.Fprintln(env.Stdout, "Signature not checked: cosign is not installed.")
+	default:
+		fmt.Fprintln(env.Stdout, "Signature not checked: sign in with gh auth login (or install cosign) and sentinel update checks it.")
 	}
 	fmt.Fprintf(env.Stdout, "Updated sentinel from %s to %s.\n", current, latest)
 	return ExitOK
