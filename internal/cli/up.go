@@ -74,6 +74,9 @@ func runUp(ctx context.Context, args []string, env Env) int {
 		return ExitFailed
 	}
 	fmt.Fprintf(env.Stdout, "Sentinel is running: %s\n", result.PanelURL)
+	if result.LiveViewPort > 0 {
+		fmt.Fprintf(env.Stdout, "Live View opens your apps at http://lv-<name>.localhost:%d, from its page in the panel\n", result.LiveViewPort)
+	}
 	if *tokenStdin {
 		fmt.Fprintf(env.Stdout, "GitHub: %s, the account of the token on the standard input\n", result.GitHubLogin)
 	} else {
