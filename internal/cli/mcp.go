@@ -57,6 +57,10 @@ func mcpTools(env Env) []mcp.Tool {
 	}
 	base := str("The branch the pull request targets, when it is not the repository's default branch.")
 	runID := str("The run id, as sentinel_run_task, sentinel_verify_pull_request or sentinel_list_runs gave it.")
+	qaByYou := map[string]any{"type": "boolean", "description": "True only when you will answer the QA and the reviewers yourself, " +
+		"one subagent per session, with sentinel_session_open and sentinel_session_call: your plan pays for them instead of a key. " +
+		"Sentinel waits up to 30 minutes for you, then stops the run."}
+	sessionID := str("The session id, as sentinel_run_status listed it under waiting_for_your_agent.")
 
 	return []mcp.Tool{
 		{
@@ -67,11 +71,13 @@ func mcpTools(env Env) []mcp.Tool {
 			InputSchema: object(map[string]any{
 				"pull_request": str("The pull request: its number, or its URL."),
 				"base":         base,
+				"qa_by_you":    qaByYou,
 			}, "pull_request"),
 			Call: func(ctx context.Context, raw json.RawMessage) mcp.Result {
 				var a struct {
 					PullRequest string `json:"pull_request"`
 					Base        string `json:"base"`
+					QAByYou     bool   `json:"qa_by_you"`
 				}
 				if r, ok := mcpArgs(raw, &a); !ok {
 					return r
@@ -79,6 +85,9 @@ func mcpTools(env Env) []mcp.Tool {
 				argv := []string{"verify", "--json", "--no-wait"}
 				if a.Base != "" {
 					argv = append(argv, "--base", a.Base)
+				}
+				if a.QAByYou {
+					argv = append(argv, "--qa-by-agent")
 				}
 				return mcpCommand(ctx, env, append(argv, "--", a.PullRequest))
 			},
@@ -89,13 +98,15 @@ func mcpTools(env Env) []mcp.Tool {
 			Description: "Send Sentinel a task together with the work in this folder that is not on GitHub yet. Sentinel finishes it in " +
 				"its sandbox, verifies it and opens a pull request. Returns the run id at once.",
 			InputSchema: object(map[string]any{
-				"task": str("What to do, in one or two sentences."),
-				"base": base,
+				"task":      str("What to do, in one or two sentences."),
+				"base":      base,
+				"qa_by_you": qaByYou,
 			}, "task"),
 			Call: func(ctx context.Context, raw json.RawMessage) mcp.Result {
 				var a struct {
-					Task string `json:"task"`
-					Base string `json:"base"`
+					Task    string `json:"task"`
+					Base    string `json:"base"`
+					QAByYou bool   `json:"qa_by_you"`
 				}
 				if r, ok := mcpArgs(raw, &a); !ok {
 					return r
@@ -104,13 +115,17 @@ func mcpTools(env Env) []mcp.Tool {
 				if a.Base != "" {
 					argv = append(argv, "--base", a.Base)
 				}
+				if a.QAByYou {
+					argv = append(argv, "--qa-by-agent")
+				}
 				return mcpCommand(ctx, env, append(argv, "--", a.Task))
 			},
 		},
 		{
-			Name:        "sentinel_run_status",
-			Title:       "Status of a run",
-			Description: "Where a run is, and once it ends its pull request, verdict, tests and cost. It does not wait.",
+			Name:  "sentinel_run_status",
+			Title: "Status of a run",
+			Description: "Where a run is, and once it ends its pull request, verdict, tests and cost. It does not wait. " +
+				"When the run waits for you to answer its QA or reviewers, waiting_for_your_agent lists those sessions.",
 			InputSchema: object(map[string]any{"run_id": runID}, "run_id"),
 			ReadOnly:    true,
 			Call: func(ctx context.Context, raw json.RawMessage) mcp.Result {
@@ -191,6 +206,52 @@ func mcpTools(env Env) []mcp.Tool {
 				return mcpCommand(ctx, env, []string{"cancel", "--", a.RunID})
 			},
 		},
+		{
+			Name:  "sentinel_session_open",
+			Title: "Open a QA or reviewer session",
+			Description: "Take one session a run waits for you to answer, as a subagent of your own. Returns your token, " +
+				"the instructions to follow and the only tools you may call, with sentinel_session_call. A session has one subagent.",
+			InputSchema: object(map[string]any{
+				"session_id": sessionID,
+				"model":      str("The model you are, as your agent names it. The receipt shows it as declared."),
+			}, "session_id", "model"),
+			Call: func(ctx context.Context, raw json.RawMessage) mcp.Result {
+				var a struct {
+					SessionID string `json:"session_id"`
+					Model     string `json:"model"`
+				}
+				if r, ok := mcpArgs(raw, &a); !ok {
+					return r
+				}
+				return mcpSessionOpen(ctx, env, a.SessionID, a.Model)
+			},
+		},
+		{
+			Name:  "sentinel_session_call",
+			Title: "Call a tool of your session",
+			Description: "Call one tool of the session you opened. Sentinel runs it in its sandbox and returns what it gave. " +
+				"When it says running, call again with the same call number and no tool. After submit_verdict the session ends.",
+			InputSchema: object(map[string]any{
+				"session_id": sessionID,
+				"token":      str("The token sentinel_session_open gave you."),
+				"tool":       str("The tool to call, one of the session's tools."),
+				"input":      map[string]any{"type": "object", "description": "The tool's arguments, as its schema asks."},
+				"call":       map[string]any{"type": "integer", "minimum": 1, "description": "To keep waiting for a call that said running: its number."},
+			}, "session_id", "token"),
+			Call: func(ctx context.Context, raw json.RawMessage) mcp.Result {
+				var a struct {
+					SessionID string         `json:"session_id"`
+					Token     string         `json:"token"`
+					Tool      string         `json:"tool"`
+					Input     map[string]any `json:"input"`
+					Call      int            `json:"call"`
+				}
+				if r, ok := mcpArgs(raw, &a); !ok {
+					return r
+				}
+				return mcpSessionCall(ctx, env, a.SessionID, a.Token, a.Tool, a.Input, a.Call)
+			},
+		},
 	}
 }
 
@@ -269,10 +330,15 @@ func mcpRunStatus(ctx context.Context, env Env, id string) mcp.Result {
 		n := int(*f)
 		return &n
 	}
+	waiting, err := client.AgentSessions(ctx, id)
+	if err != nil {
+		return mcp.Result{Text: err.Error(), IsError: true}
+	}
 	status := struct {
-		Run     runSummary    `json:"run"`
-		Stories []storyStatus `json:"stories"`
-	}{Run: summarize(client, run), Stories: make([]storyStatus, 0, len(stories))}
+		Run     runSummary            `json:"run"`
+		Stories []storyStatus         `json:"stories"`
+		Waiting []server.AgentSession `json:"waiting_for_your_agent,omitempty"`
+	}{Run: summarize(client, run), Stories: make([]storyStatus, 0, len(stories)), Waiting: waiting}
 	for _, s := range stories {
 		item := storyStatus{
 			Title:         client.Clean(s.Title, server.MaxDetail),

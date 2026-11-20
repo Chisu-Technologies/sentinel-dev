@@ -220,6 +220,16 @@ type StartRequest struct {
 	PullNumber int
 	// BaseRef is sent only when not empty.
 	BaseRef string
+	// QAByAgent asks that the agent sending the run answer its QA and
+	// reviewers itself, with its own subagents.
+	QAByAgent bool
+}
+
+// qaRunner adds to a run request that the sending agent answers its QA.
+func qaRunner(body map[string]any, byAgent bool) {
+	if byAgent {
+		body["qa_runner"] = "agent"
+	}
 }
 
 // Evidence is what the server attached to a story as proof.
@@ -269,6 +279,7 @@ func (c *Client) StartVerify(ctx context.Context, req StartRequest) (Run, error)
 	if req.BaseRef != "" {
 		body["base_ref"] = req.BaseRef
 	}
+	qaRunner(body, req.QAByAgent)
 	return c.start(ctx, body)
 }
 
@@ -282,6 +293,8 @@ type TaskRequest struct {
 	BaseCommit string
 	// Patch is sent only when not empty.
 	Patch []byte
+	// QAByAgent: see StartRequest.
+	QAByAgent bool
 }
 
 // MaxTaskTitle bounds the title of the task, its first line, which becomes the
@@ -312,6 +325,7 @@ func (c *Client) StartTask(ctx context.Context, req TaskRequest) (Run, error) {
 	if len(req.Patch) > 0 {
 		body["patch"] = string(req.Patch)
 	}
+	qaRunner(body, req.QAByAgent)
 	run, err := c.start(ctx, body)
 	if err != nil || len(req.Patch) == 0 {
 		return run, err
