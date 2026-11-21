@@ -44,7 +44,7 @@ func runRun(ctx context.Context, args []string, env Env) int {
 	timeout := fs.Duration("timeout", 2*time.Hour, "how long to wait for the run to end, such as 90m")
 	base := fs.String("base", "", "the branch the pull request targets, when it is not the default one")
 	fromClaudeCode := fs.Bool("from-claude-code", false, "take the task from the newest Claude Code session in this folder")
-	qaByAgent := fs.Bool("qa-by-agent", false, "the QA and the reviewers are answered by the coding agent that sends the run, with its own subagents (Claude Code's sentinel plugin)")
+	qaByAgent := fs.Bool("qa-by-agent", false, "the implementer, the QA and the reviewers are answered by the coding agent that sends the run, with its own subagents (Claude Code's sentinel plugin)")
 	if code := parse(fs, args, env, `run [--dry-run] [--json] [--no-wait] [--timeout <duration>] [--base <branch>] [--qa-by-agent] "<task>" | run --from-claude-code [...]`); code >= 0 {
 		return code
 	}

@@ -10,7 +10,8 @@ description: "Have Sentinel verify an existing pull request of this repository, 
    minute until the run ends. When the status lists sessions under
    `waiting_for_your_agent`, start one subagent per session, all at once, with its
    `session_id`: `sentinel-qa` for `qa`, `sentinel-reviewer-a` for `reviewer-a`,
-   `sentinel-reviewer-b` for `reviewer-b`.
+   `sentinel-reviewer-b` for `reviewer-b`. The reviewers come after the QA, only
+   when it approves.
 3. Tell the user the verdict and what Sentinel found, exactly as it reports them,
    with the tests and the cost. Sentinel does not change the pull request and never
    merges it.
