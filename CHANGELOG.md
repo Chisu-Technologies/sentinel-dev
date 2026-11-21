@@ -7,6 +7,28 @@ Notable changes are listed here, following
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-11-21
+
+### Added
+
+- The run's "Live" tab in the panel shows the agent's terminal as it works.
+
+### Fixed
+
+- Verifying a pull request (`sentinel:verify-pr`) reaches GitHub through the `gh` session
+  that `sentinel up` uses. Before, every verification stopped before reading the pull
+  request.
+- A pull request's verification checks its tests against the pull request's base, so a
+  test that proves the change counts as such. Before, the differential always said
+  `NO_NEW_TESTS`.
+- The comment on the pull request counts the tests the QA wrote, and links the signed
+  receipt only when the Sentinel has a public address. Before, it said "0 tests written"
+  and printed an empty link.
+
+### Changed
+
+- The server that `sentinel up` runs is Sentinel c5af1277.
+
 ## [0.8.0] - 2026-11-20
 
 ### Added
