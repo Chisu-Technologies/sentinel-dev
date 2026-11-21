@@ -57,7 +57,7 @@ func mcpTools(env Env) []mcp.Tool {
 	}
 	base := str("The branch the pull request targets, when it is not the repository's default branch.")
 	runID := str("The run id, as sentinel_run_task, sentinel_verify_pull_request or sentinel_list_runs gave it.")
-	qaByYou := map[string]any{"type": "boolean", "description": "True only when you will answer the QA and the reviewers yourself, " +
+	qaByYou := map[string]any{"type": "boolean", "description": "True only when you will answer the implementer, the QA and the reviewers yourself, " +
 		"one subagent per session, with sentinel_session_open and sentinel_session_call: your plan pays for them instead of a key. " +
 		"Sentinel waits up to 30 minutes for you, then stops the run."}
 	sessionID := str("The session id, as sentinel_run_status listed it under waiting_for_your_agent.")
@@ -125,7 +125,7 @@ func mcpTools(env Env) []mcp.Tool {
 			Name:  "sentinel_run_status",
 			Title: "Status of a run",
 			Description: "Where a run is, and once it ends its pull request, verdict, tests and cost. It does not wait. " +
-				"When the run waits for you to answer its QA or reviewers, waiting_for_your_agent lists those sessions.",
+				"When the run waits for you to answer its implementer, QA or reviewers, waiting_for_your_agent lists those sessions.",
 			InputSchema: object(map[string]any{"run_id": runID}, "run_id"),
 			ReadOnly:    true,
 			Call: func(ctx context.Context, raw json.RawMessage) mcp.Result {
@@ -208,7 +208,7 @@ func mcpTools(env Env) []mcp.Tool {
 		},
 		{
 			Name:  "sentinel_session_open",
-			Title: "Open a QA or reviewer session",
+			Title: "Open a session of a run",
 			Description: "Take one session a run waits for you to answer, as a subagent of your own. Returns your token, " +
 				"the instructions to follow and the only tools you may call, with sentinel_session_call. A session has one subagent.",
 			InputSchema: object(map[string]any{

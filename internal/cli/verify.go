@@ -105,7 +105,7 @@ func runVerify(ctx context.Context, args []string, env Env) int {
 	noWait := fs.Bool("no-wait", false, "print the run id and stop, without waiting for the verdict")
 	timeout := fs.Duration("timeout", 45*time.Minute, "how long to wait for the verdict, such as 30m")
 	base := fs.String("base", "", "the branch the pull request targets, when it is not the default one")
-	qaByAgent := fs.Bool("qa-by-agent", false, "the QA and the reviewers are answered by the coding agent that sends the run, with its own subagents (Claude Code's sentinel plugin)")
+	qaByAgent := fs.Bool("qa-by-agent", false, "the implementer, the QA and the reviewers are answered by the coding agent that sends the run, with its own subagents (Claude Code's sentinel plugin)")
 	if code := parse(fs, args, env, "verify [--dry-run] [--json] [--no-wait] [--timeout <duration>] [--base <branch>] [--qa-by-agent] <pull request>"); code >= 0 {
 		return code
 	}

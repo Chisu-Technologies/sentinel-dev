@@ -7,6 +7,14 @@ Notable changes are listed here, following
 
 ## [Unreleased]
 
+### Added
+
+- With `qa_by_you`, the fixes a run needs after its QA or checks send it back are made
+  by your own agent too, through the new subagent `sentinel-implementer`: a run you
+  send calls no model of Sentinel's. The signed attestation says so.
+- `sentinel_verify_pull_request` now has Sentinel's reviewers check the pull request
+  after its QA approves, as for a run, and its verdict and comment say what they found.
+
 ## [0.9.0] - 2026-11-21
 
 ### Added

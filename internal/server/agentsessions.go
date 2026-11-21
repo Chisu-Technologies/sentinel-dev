@@ -8,13 +8,13 @@ import (
 	"net/url"
 )
 
-// AgentSession is a QA or reviewer session of a run that waits for the user's
+// AgentSession is an implementer, QA or reviewer session of a run that waits for the user's
 // own coding agent to answer it (Sentinel 7.16, open edition).
 type AgentSession struct {
 	ID      string `json:"id"`
 	RunID   string `json:"run_id"`
 	StoryID string `json:"story_id"`
-	// Role is qa, reviewer-a or reviewer-b.
+	// Role is implementer, qa, reviewer-a or reviewer-b.
 	Role string `json:"role"`
 }
 
