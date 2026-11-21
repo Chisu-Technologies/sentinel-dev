@@ -7,13 +7,21 @@ Notable changes are listed here, following
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-11-21
+
 ### Added
 
+- From the run's "Live" tab you can pause the agent before its next step, for up to 15
+  minutes, and give it back; the pull request says how long it was held.
 - With `qa_by_you`, the fixes a run needs after its QA or checks send it back are made
   by your own agent too, through the new subagent `sentinel-implementer`: a run you
   send calls no model of Sentinel's. The signed attestation says so.
 - `sentinel_verify_pull_request` now has Sentinel's reviewers check the pull request
   after its QA approves, as for a run, and its verdict and comment say what they found.
+
+### Changed
+
+- The server that `sentinel up` runs is Sentinel 22ab9ff4.
 
 ## [0.9.0] - 2026-11-21
 
