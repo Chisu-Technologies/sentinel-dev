@@ -17,12 +17,14 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/Chisu-Technologies/sentinel-dev/internal/execx"
 )
@@ -352,7 +354,7 @@ func replace(executable string, content []byte) error {
 		return err
 	}
 	old := filepath.Join(dir, ".sentinel.old"+filepath.Ext(executable))
-	_ = os.Remove(old)
+	clearOld(old)
 	if err := os.Rename(executable, old); err != nil {
 		return fmt.Errorf("cannot replace %s: %w", executable, err)
 	}
@@ -364,6 +366,24 @@ func replace(executable string, content []byte) error {
 	// Fails while the old binary runs on Windows; the next update removes it.
 	_ = os.Remove(old)
 	return nil
+}
+
+// clearOld frees the name an update moves the running binary to. The binary an
+// earlier update left there stays locked on Windows while a process started
+// from it runs, and an editor keeps `sentinel mcp` open for days: it cannot be
+// removed then, but it can be renamed, so it goes to a name of its own that a
+// later update removes once nothing runs it.
+func clearOld(old string) {
+	ext := filepath.Ext(old)
+	stem := strings.TrimSuffix(old, ext)
+	leftovers, _ := filepath.Glob(stem + ".*" + ext)
+	for _, leftover := range leftovers {
+		_ = os.Remove(leftover)
+	}
+	if err := os.Remove(old); err == nil || errors.Is(err, fs.ErrNotExist) {
+		return
+	}
+	_ = os.Rename(old, stem+"."+strconv.FormatInt(time.Now().UnixNano(), 10)+ext)
 }
 
 func (s Source) get(ctx context.Context, url string, limit int64) ([]byte, error) {
