@@ -17,9 +17,11 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"net"
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/Chisu-Technologies/sentinel-dev/internal/execx"
@@ -68,6 +70,8 @@ type Install struct {
 	// instead of the GitHub CLI of this machine. `sentinel setup` uses it to
 	// bring its own session to a server that has no GitHub CLI.
 	GitHubTokenInput io.Reader
+	// PortFree reports whether a port of 127.0.0.1 is free. Nil tries to listen on it.
+	PortFree func(port int) bool
 }
 
 // Result is what `up` reports at the end.
@@ -82,6 +86,8 @@ type Result struct {
 	// GitHubLogin is the GitHub account Sentinel works as: the one of the
 	// GitHub CLI session.
 	GitHubLogin string
+	// LiveViewPort is where Live View opens the app of a session, on 127.0.0.1.
+	LiveViewPort int
 }
 
 // ErrDockerMissing and ErrDockerStopped are the two ways Docker is not ready.
@@ -195,6 +201,9 @@ func (i *Install) Up(ctx context.Context, email string, signIn bool) (Result, er
 		} else if added {
 			i.say("Added the key that lets agents reach the MCP servers you add in Settings > External tools.")
 		}
+	}
+	if result.LiveViewPort, err = i.ensureLiveViewPort(); err != nil {
+		return result, err
 	}
 	// Read again on every run, so a new `gh auth login` reaches Sentinel.
 	if err := i.setEnv(GitHubTokenSetting, githubToken); err != nil {
@@ -533,6 +542,55 @@ func (i *Install) addToolBrokerKey() (bool, error) {
 		return false, err
 	}
 	return true, i.setEnv(toolBrokerKeySetting, key)
+}
+
+// liveViewPortSetting is the port of 127.0.0.1 where Live View opens the app a
+// session runs, at http://lv-….localhost:<port>: the bundle publishes the
+// installation's gateway there and the server builds each session's address
+// with it.
+const liveViewPortSetting = "SENTINEL_LIVE_VIEW_PORT"
+
+const (
+	firstLiveViewPort = 8421
+	lastLiveViewPort  = 8499
+)
+
+// ensureLiveViewPort returns the installation's Live View port, choosing a free
+// one the first time. A port that is there is kept, even when something holds
+// it now (Sentinel's own gateway does while it runs): an address must not
+// move between runs.
+func (i *Install) ensureLiveViewPort() (int, error) {
+	data, err := os.ReadFile(filepath.Join(i.Dir, envFile))
+	if err != nil {
+		return 0, err
+	}
+	for _, line := range strings.Split(string(data), "\n") {
+		if value, ok := strings.CutPrefix(strings.TrimRight(line, "\r"), liveViewPortSetting+"="); ok {
+			if port, err := strconv.Atoi(strings.TrimSpace(value)); err == nil && port >= 1024 && port <= 65535 {
+				return port, nil
+			}
+		}
+	}
+	free := i.PortFree
+	if free == nil {
+		free = portFree
+	}
+	for port := firstLiveViewPort; port <= lastLiveViewPort; port++ {
+		if free(port) {
+			return port, i.setEnv(liveViewPortSetting, strconv.Itoa(port))
+		}
+	}
+	return 0, fmt.Errorf("no port between %d and %d of 127.0.0.1 is free for Live View. Free one, or set %s in %s, then run this again",
+		firstLiveViewPort, lastLiveViewPort, liveViewPortSetting, filepath.Join(i.Dir, envFile))
+}
+
+func portFree(port int) bool {
+	listener, err := net.Listen("tcp", net.JoinHostPort("127.0.0.1", strconv.Itoa(port)))
+	if err != nil {
+		return false
+	}
+	listener.Close()
+	return true
 }
 
 // fernetKey is 32 random bytes in padded URL-safe base64, the form the server's

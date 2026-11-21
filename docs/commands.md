@@ -125,6 +125,12 @@
     15 minutes.
   - Running it again updates and starts what is stopped. It keeps the secrets and the
     data. `--sign-in` prints a new sign-in link.
+  - Live View runs a repository's app in an isolated container on this machine and opens
+    it in a tab of its own, at `http://lv-<name>.localhost:<port>`. Names under
+    `.localhost` always go to this machine, and the port listens on `127.0.0.1` only.
+    The first `sentinel up` chooses a free port from 8421, keeps it in the installation's
+    `.env` as `SENTINEL_LIVE_VIEW_PORT` and says it; later runs keep it. The app reaches
+    the internet but nothing of this machine, Sentinel or your network.
   - It keeps its files in one folder: `.sentinel/local` in your home folder, or the one
     in `SENTINEL_HOME` or `--dir`. On Windows, a folder under `AppData` does not work:
     Docker Desktop does not see the files there.

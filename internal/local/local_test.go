@@ -97,6 +97,8 @@ func newInstall(t *testing.T, d *docker) (*Install, *bytes.Buffer) {
 		Bundle:   bundle,
 		Rand:     bytes.NewReader(bytes.Repeat([]byte{7}, 1024)),
 		Progress: &progress,
+		// Every port is free: the tests do not depend on what this machine runs.
+		PortFree: func(int) bool { return true },
 	}, &progress
 }
 
@@ -538,5 +540,41 @@ func TestTheTokenOnTheStandardInputReplacesTheGitHubCLI(t *testing.T) {
 		if _, err := install.GitHubToken(context.Background()); !errors.Is(err, ErrGitHubTokenInput) {
 			t.Errorf("input %q: err = %v, want ErrGitHubTokenInput", input, err)
 		}
+	}
+}
+
+// Plan 8.5: Live View opens a session's app at http://lv-….localhost:<port>,
+// where the bundle publishes the installation's gateway.
+func TestUpChoosesAFreeLiveViewPortAndKeepsIt(t *testing.T) {
+	d := withOwner(freshDocker(), owner)
+	install, _ := newInstall(t, d)
+	install.PortFree = func(port int) bool { return port != 8421 }
+
+	result, err := install.Up(context.Background(), "you@example.com", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.LiveViewPort != 8422 || envValue(t, install.Dir, "SENTINEL_LIVE_VIEW_PORT") != "8422" {
+		t.Fatalf("port %d, .env %q", result.LiveViewPort, envValue(t, install.Dir, "SENTINEL_LIVE_VIEW_PORT"))
+	}
+	// The next run keeps it, although Sentinel's own gateway now holds it.
+	install.PortFree = func(int) bool { return false }
+	again, err := install.Up(context.Background(), "", false)
+	if err != nil || again.LiveViewPort != 8422 {
+		t.Fatalf("again %d, err %v", again.LiveViewPort, err)
+	}
+}
+
+func TestUpSaysWhatToDoWhenNoLiveViewPortIsFree(t *testing.T) {
+	d := withOwner(freshDocker(), owner)
+	install, _ := newInstall(t, d)
+	install.PortFree = func(int) bool { return false }
+
+	_, err := install.Up(context.Background(), "you@example.com", false)
+	if err == nil || !strings.Contains(err.Error(), "SENTINEL_LIVE_VIEW_PORT") || !strings.Contains(err.Error(), "8421 and 8499") {
+		t.Fatalf("err = %v", err)
+	}
+	if d.ran(" pull --quiet") != 0 {
+		t.Error("the images were downloaded although Sentinel could not start")
 	}
 }

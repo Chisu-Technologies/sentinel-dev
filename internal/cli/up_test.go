@@ -72,7 +72,7 @@ func TestUpPrintsThePanelAndASignInLinkTheFirstTime(t *testing.T) {
 	if got.code != ExitOK {
 		t.Fatalf("got %+v", got)
 	}
-	for _, want := range []string{"Sentinel is running: http://localhost:8080", "Owner: you@example.com", "http://localhost:8080/api/auth/verify?token=t0k3n"} {
+	for _, want := range []string{"Sentinel is running: http://localhost:8080", "Live View opens your apps at http://lv-<name>.localhost:84", "Owner: you@example.com", "http://localhost:8080/api/auth/verify?token=t0k3n"} {
 		if !strings.Contains(got.stdout, want) {
 			t.Errorf("stdout = %q, want it to contain %q", got.stdout, want)
 		}
