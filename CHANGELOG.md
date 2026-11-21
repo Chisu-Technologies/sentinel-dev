@@ -7,6 +7,12 @@ Notable changes are listed here, following
 
 ## [Unreleased]
 
+### Fixed
+
+- `sentinel update` on Windows no longer fails with "Access is denied" when an editor still
+  runs `sentinel mcp` from the binary an earlier update replaced: that binary is moved to a
+  name of its own and removed by a later update.
+
 ## [0.10.0] - 2026-11-21
 
 ### Added

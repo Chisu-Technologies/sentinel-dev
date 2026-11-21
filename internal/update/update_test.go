@@ -135,6 +135,30 @@ func TestInstallReplacesTheBinaryWhenTheChecksumMatches(t *testing.T) {
 	}
 }
 
+// The binary an earlier update moved aside cannot always be removed: on Windows
+// it stays locked while a `sentinel mcp` started from it runs, and an editor
+// keeps that open for days. A directory that is not empty fails os.Remove the
+// same way on every system.
+func TestInstallSucceedsWhenTheEarlierOldBinaryCannotBeRemoved(t *testing.T) {
+	archive := tarGz(t, "sentinel", []byte("new binary"), tar.TypeReg)
+	src := release(t, "v0.3.3", map[string][]byte{
+		"sentinel_linux_amd64.tar.gz": archive,
+		"SHA256SUMS":                  []byte(sumOf(archive) + "  sentinel_linux_amd64.tar.gz\n"),
+	})
+	path := installed(t)
+	locked := filepath.Join(filepath.Dir(path), ".sentinel.old")
+	if err := os.MkdirAll(filepath.Join(locked, "in-use"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := src.Install(context.Background(), "v0.3.3", linuxOptions(path, nothingToCheck)); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := os.ReadFile(path); string(got) != "new binary" {
+		t.Errorf("binary = %q", got)
+	}
+}
+
 func TestInstallOnWindowsReadsTheZip(t *testing.T) {
 	archive := zipped(t, "sentinel.exe", []byte("new exe"))
 	src := release(t, "v0.3.3", map[string][]byte{
