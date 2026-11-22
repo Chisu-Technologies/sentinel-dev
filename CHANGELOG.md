@@ -7,6 +7,19 @@ Notable changes are listed here, following
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-11-22
+
+### Added
+
+- While you hold the agent from the run's "Live" tab, you can run commands in its
+  sandbox, with the same rules as the agent's own, and click on the picture of its
+  browser. When you give it back, the agent reads what you did before going on, and
+  the pull request counts your commands and clicks.
+
+### Changed
+
+- The server that `sentinel up` runs is Sentinel 838f8ea9.
+
 ### Fixed
 
 - `sentinel update` on Windows no longer fails with "Access is denied" when an editor still
