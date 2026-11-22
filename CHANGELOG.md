@@ -7,6 +7,12 @@ Notable changes are listed here, following
 
 ## [Unreleased]
 
+### Fixed
+
+- `sentinel run` and `sentinel verify` show what the run cost when its story was cut
+  short by a stop or by the server's time limit. They printed $0.00: the story's own
+  figure is written by the work that was cut.
+
 ## [0.12.1] - 2026-11-22
 
 ### Changed
