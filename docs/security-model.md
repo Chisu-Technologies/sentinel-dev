@@ -42,6 +42,28 @@
 
 A container shares the kernel of the server. gVisor and microVMs exist to narrow that.
 
+### Each command in its own microVM (Kata)
+
+On Linux with KVM, each command of the agent can run in its own microVM, with its own
+kernel. It costs about a second more per command and about 170 MB while the command
+runs. Network is unchanged: the same internal network, out only through the proxy.
+
+1. Install [Kata Containers](https://github.com/kata-containers/kata-containers/releases)
+   (the `kata-static` archive, checked against its published sha256) and register it in
+   `/etc/docker/daemon.json`, using Cloud Hypervisor:
+
+   ```json
+   {"runtimes": {"kata": {"runtimeType": "io.containerd.kata.v2",
+     "options": {"ConfigPath": "/opt/kata/share/defaults/kata-containers/runtime-rs/configuration-clh-runtime-rs.toml"}}}}
+   ```
+
+   Then restart Docker.
+2. `sentinel up` notices the runtime and says what to add to `~/.sentinel/local/.env`:
+   `SENTINEL_SANDBOX_RUNTIME=kata`. Run `sentinel up` again.
+
+Before starting Sentinel, `sentinel up` starts a test container with that runtime. If it
+does not start, that run uses runc and says why; the `.env` stays as you wrote it.
+
 ## Rules the agent cannot change
 
 - **No merge.** The agent opens a pull request. Merging is denied in every mode.

@@ -7,6 +7,21 @@ Notable changes are listed here, following
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-11-22
+
+### Added
+
+- Where Docker has Kata Containers, each command of the agent can run in its own
+  microVM: `sentinel up` says how to turn it on, and before starting Sentinel it checks
+  with a test container that the runtime set in `.env` works. If it does not, that run
+  uses runc and says why. See "Each command in its own microVM" in
+  `docs/security-model.md`.
+
+### Changed
+
+- The server that `sentinel up` runs is Sentinel 6bc7ae7f, whose sandbox reaches the
+  package proxy from inside a Kata microVM.
+
 ## [0.11.0] - 2026-11-22
 
 ### Added

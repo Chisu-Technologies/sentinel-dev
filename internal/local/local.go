@@ -72,6 +72,9 @@ type Install struct {
 	GitHubTokenInput io.Reader
 	// PortFree reports whether a port of 127.0.0.1 is free. Nil tries to listen on it.
 	PortFree func(port int) bool
+
+	// composeEnv overrides settings of the .env for this run only.
+	composeEnv []string
 }
 
 // Result is what `up` reports at the end.
@@ -120,7 +123,7 @@ func (i *Install) say(format string, a ...any) {
 
 func (i *Install) compose(args ...string) execx.Command {
 	base := []string{"compose", "-p", Project, "--env-file", filepath.Join(i.Dir, envFile), "-f", filepath.Join(i.Dir, composeFile)}
-	return execx.Command{Name: "docker", Args: append(base, args...), Dir: i.Dir}
+	return execx.Command{Name: "docker", Args: append(base, args...), Dir: i.Dir, Env: i.composeEnv}
 }
 
 // run runs a command and turns a non-zero exit into an error that carries the
@@ -213,6 +216,9 @@ func (i *Install) Up(ctx context.Context, email string, signIn bool) (Result, er
 	i.say("Downloading the images (the first time takes a few minutes)")
 	if _, err := i.run(ctx, "downloading the images", i.compose("pull", "--quiet")); err != nil {
 		return result, err
+	}
+	if err := i.checkSandboxRuntime(ctx); err != nil {
+		return result, fmt.Errorf("checking the runtime of the agent's containers: %w", err)
 	}
 
 	if done, _ := i.readMark(admissionMark); done == "" {
