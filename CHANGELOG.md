@@ -7,6 +7,30 @@ Notable changes are listed here, following
 
 ## [Unreleased]
 
+## [0.12.1] - 2026-11-22
+
+### Changed
+
+- The server that `sentinel up` runs is Sentinel 0e7e6d62.
+
+### Fixed
+
+- A task on a Go repository whose `go.mod` asks for Go 1.26 no longer starts from a red
+  base: the sandbox's Go is 1.26.11, it was 1.22.12. When a `go.mod` asks for a newer Go
+  than the sandbox has, the task stops as a broken test environment; before, Sentinel
+  started a repair of the repository.
+- A stopped run no longer keeps its spinners or reads $0.00: its unfinished stories end
+  as stopped, and the run shows what its model calls cost.
+- A stop reaches the agent sooner: the worker's heartbeat, which brings the stop, is held
+  back 10 seconds at most; it was 60, and the agent kept calling the model meanwhile.
+- While a run is under way, its page shows the phase it is in, what it has spent and the
+  attempt it is on. It read "Preparing the repository", "$0.00" and "0 of 5" until the
+  story ended.
+- "Sessions so far" lists each session's role, attempt and outcome.
+- The live timeline shows the first run of the tests, and says when a run waits for
+  another task, such as a Brain digest, to finish.
+- A Brain digest that ended well no longer shows as rejected in the worker's log.
+
 ## [0.12.0] - 2026-11-22
 
 ### Added
