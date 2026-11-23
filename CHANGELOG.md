@@ -7,6 +7,35 @@ Notable changes are listed here, following
 
 ## [Unreleased]
 
+## [0.12.4] - 2026-11-23
+
+### Changed
+
+- The server that `sentinel up` runs is Sentinel ee0f439b.
+- The reviewers of a change run at the same time instead of one after another. In the
+  task measured, the four of them took 10 minutes where their sessions add up to 25.
+  `SENTINEL_REVIEWERS_SIDE_BY_SIDE=0` goes back to one after another.
+- A task has 110 minutes on this machine, where it had 45.
+- The implementer has 48 turns, where it had 28. It is told how many it has and when
+  10 and 5 are left.
+- Two tasks of a plan run at the same time only when the plan puts them in the same
+  parallel group. A plan with no groups runs one task at a time; the automatic mode
+  ran two, whatever files they changed.
+- This machine runs as many tasks at once as its CPUs hold: one per CPU, less 15 %.
+  It ran as many as fit in memory. The rest wait in line.
+
+### Fixed
+
+- A task that runs out of turns or of time keeps its work. It stops by itself five
+  minutes before its time is up, saves what it wrote and a note for the session that
+  continues it, and `sentinel resume` goes on from there. It ended blocked with nothing
+  saved, once two seconds after it had opened its pull request.
+- A session that continues an unfinished task gets the notes of the one before it, up
+  to three times. It got a diff and read the same files again.
+- The Go files a task writes are formatted with `gofmt` before QA sees them. A pull
+  request failed its checks on formatting the implementer had no tool to fix.
+- The board does not show as failed a task that is only waiting for another to end.
+
 ## [0.12.3] - 2026-11-23
 
 ### Changed
