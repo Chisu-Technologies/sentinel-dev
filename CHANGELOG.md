@@ -11,7 +11,7 @@ Notable changes are listed here, following
 
 ### Changed
 
-- The server that `sentinel up` runs is Sentinel a74f2d22.
+- The server that `sentinel up` runs is Sentinel cec0b536.
 
 ### Fixed
 
