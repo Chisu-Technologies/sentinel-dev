@@ -22,6 +22,12 @@ corre en un sandbox que nunca tiene tus llaves. Un segundo agente, que no escrib
 cambio, lo prueba. El resultado es un pull request para que lo revises; el agente no
 puede hacer merge.
 
+Una revisión de código lee tu cambio. Sentinel lo ejecuta: tus tests corren contra tu
+rama y contra su base, un QA aparte escribe el test que faltaba y el pull request lleva
+la evidencia. Si ya usas un bot de revisión como Claude Ship, Sentinel es el check que
+prueba lo que ese bot revisa: su veredicto es el estado de commit
+`sentinel/verification`, que una regla de rama puede exigir.
+
 > **Pre-alfa.** Hoy solo existen `sentinel up`, `sentinel down`, `sentinel cancel`,
 > `sentinel doctor`, `sentinel pull`, `sentinel resume`, `sentinel run`,
 > `sentinel runs`, `sentinel setup`, `sentinel stop`, `sentinel update`,
