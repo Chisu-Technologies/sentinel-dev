@@ -7,8 +7,23 @@ Notable changes are listed here, following
 
 ## [Unreleased]
 
+## [0.12.2] - 2026-11-23
+
+### Changed
+
+- The server that `sentinel up` runs is Sentinel a74f2d22.
+
 ### Fixed
 
+- In a Go repository, the tests QA writes are run. The command that ran them skipped
+  their folder, so it answered with the project's own tests and QA spent its turns
+  finding out why.
+- When QA approves a change but leaves part of its verdict out, QA is asked again. The
+  task went back to the implementer, which had nothing to change.
+- When a reviewer approves a change but its verdict has a part too many or too few, the
+  reviewer is asked to correct it. The task ended blocked.
+- A task of a stopped run reads as stopped. It read "The processing activity failed:
+  Cancelled".
 - `sentinel run` and `sentinel verify` show what the run cost when its story was cut
   short by a stop or by the server's time limit. They printed $0.00: the story's own
   figure is written by the work that was cut.
