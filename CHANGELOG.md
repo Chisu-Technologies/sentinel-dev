@@ -7,6 +7,27 @@ Notable changes are listed here, following
 
 ## [Unreleased]
 
+## [0.12.3] - 2026-11-23
+
+### Changed
+
+- The server that `sentinel up` runs is Sentinel 8d75fc11.
+- The implementer and QA ask the model for medium reasoning effort, with the Claude
+  models that accept the setting. Every other role keeps the model's default.
+
+### Fixed
+
+- With the Claude models that accept it, QA and the reviewers can only send a verdict
+  that has all its parts and is about the criteria of the task. A verdict that says
+  neither approved nor rejected is asked for again. It read as a rejection, and a
+  change every check had passed could end blocked.
+- A plan the Architect is writing does not end because two commands of one answer were
+  wrong: both get the one correction a plan has.
+- A long plan is no longer cut while the model is still answering. It failed with
+  `plan_compiler_activity_failed`.
+- When the pull request of an approved plan fails on something only a person can
+  change in the repository, the task says what it is.
+
 ## [0.12.2] - 2026-11-23
 
 ### Changed
