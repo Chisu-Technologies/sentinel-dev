@@ -170,6 +170,7 @@ func followRun(ctx context.Context, env Env, client *server.Client, run server.R
 			fmt.Fprintf(env.Stderr, "Run %s: %s\n", run.ID, client.Clean(next.Status, 64))
 		}
 		run.Status = next.Status
+		run.TotalCostUSD = next.TotalCostUSD
 		return nil
 	})
 	if why != "" {
@@ -194,7 +195,7 @@ func followRun(ctx context.Context, env Env, client *server.Client, run server.R
 		verdict = "UNKNOWN"
 	}
 	result.Verdict = client.Clean(verdict, 64)
-	cost := story.CostUSD
+	cost := runCost(run, story)
 	result.CostUSD = &cost
 	if story.PRURL != nil && strings.HasPrefix(*story.PRURL, "https://github.com/") {
 		result.PullRequestURL = client.Clean(*story.PRURL, server.MaxDetail)

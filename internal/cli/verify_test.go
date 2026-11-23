@@ -40,6 +40,8 @@ type fakeServer struct {
 	// echoPatch answers a start request that carries a patch with its digest,
 	// as a server that takes local work does.
 	echoPatch bool
+	// runCost is the total_cost_usd the server answers for the run.
+	runCost string
 }
 
 func newFakeServer(t *testing.T, stories string, statuses ...string) *fakeServer {
@@ -74,7 +76,11 @@ func newFakeServer(t *testing.T, stories string, statuses ...string) *fakeServer
 		case r.Method == "GET" && r.URL.Path == "/api/runs/run-7":
 			i := min(f.polls+1, len(f.statuses)-1)
 			f.polls++
-			io.WriteString(w, `{"id":"run-7","status":"`+f.statuses[i]+`"}`)
+			cost := ""
+			if f.runCost != "" {
+				cost = `,"total_cost_usd":` + f.runCost
+			}
+			io.WriteString(w, `{"id":"run-7","status":"`+f.statuses[i]+`"`+cost+`}`)
 		case r.Method == "GET" && r.URL.Path == "/api/runs/run-7/stories":
 			io.WriteString(w, f.stories)
 		default:
@@ -321,6 +327,17 @@ func TestVerifyTheTableLeavesOutWhatIsNotKnown(t *testing.T) {
 		}
 	}
 	if !strings.Contains(got.stdout, "Pull request  #12 "+prURL+"\n") || !strings.Contains(got.stdout, "Cost          $0.00\n") {
+		t.Errorf("stdout = %s", got.stdout)
+	}
+}
+
+func TestVerifyShowsWhatTheRunCostWhenItsStoryWasCutShort(t *testing.T) {
+	story := `[{"state":"blocked","cost_usd":0,"blocked_reason":"run_stopped","blocked_detail":"The run was stopped before this story finished."}]`
+	f := newFakeServer(t, story, "running", "stopped")
+	f.runCost = "0.25"
+	got, _ := verifyRun(t, &execxtest.Fake{}, "", serverVars(f), prURL)
+
+	if !strings.Contains(got.stdout, "Cost          $0.25\n") {
 		t.Errorf("stdout = %s", got.stdout)
 	}
 }

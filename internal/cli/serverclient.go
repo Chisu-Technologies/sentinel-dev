@@ -84,6 +84,13 @@ func (w *waiter) classify(err error, fromSleep bool) string {
 	return w.client.Clean(err.Error(), server.MaxDetail) + "."
 }
 
+// runCost is what a run of one story cost. The story's own figure is written
+// by the work that ends it, so a story cut by a stop or by the server's time
+// limit reads 0 while the run already holds what its model calls cost.
+func runCost(run server.Run, story server.Story) float64 {
+	return max(story.CostUSD, run.TotalCostUSD)
+}
+
 // until polls the run every pollInterval while status is not terminal.
 // onPoll sees each answer and may stop the wait with an error. It returns the
 // last status, and, when waiting stopped for another reason than a terminal

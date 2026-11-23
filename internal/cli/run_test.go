@@ -154,6 +154,24 @@ func TestRunABlockedTaskExitsOneWithTheReason(t *testing.T) {
 	}
 }
 
+// A story cut by the server's time limit, or by a stop, reads no cost of its
+// own: the work that would have written it is what was cut. Measured on
+// 2026-11-22: the command printed $0.00 for a run whose model calls cost $2.76.
+func TestRunShowsWhatTheRunCostWhenItsStoryWasCutShort(t *testing.T) {
+	f := checkouttest.New(t)
+	srv := newFakeServer(t, `[{"state":"blocked","title":"T","pr_url":null,"cost_usd":0,
+		"blocked_reason":"activity_error","blocked_detail":"The processing activity failed: activity StartToClose timeout",
+		"evidence":null,"diff_files":0,"diff_added":0,"diff_removed":0}]`, "queued", "blocked")
+	srv.runCost = "2.76"
+
+	got := sendTask(t, execx.OS{}, f.Work, serverVars(srv), "--json", "fix it")
+
+	var out runResult
+	if err := json.Unmarshal([]byte(got.stdout), &out); err != nil || out.CostUSD == nil || *out.CostUSD != 2.76 {
+		t.Errorf("stdout = %s (%v), want cost_usd 2.76", got.stdout, err)
+	}
+}
+
 func TestRunNoWaitStopsAfterTheRunIsCreated(t *testing.T) {
 	f := checkouttest.New(t)
 	srv := newFakeServer(t, taskStory, "queued")
