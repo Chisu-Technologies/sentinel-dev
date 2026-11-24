@@ -7,6 +7,35 @@ Notable changes are listed here, following
 
 ## [Unreleased]
 
+## [0.12.5] - 2026-11-24
+
+### Changed
+
+- The server that `sentinel up` runs is Sentinel e74c2102.
+- Sentinel's verdict is also the commit status `sentinel/verification`: of the commit a
+  verification checked (success, failure, or error when it could not conclude) and of
+  each commit Sentinel publishes. A branch rule can require it, which it cannot do with
+  a comment.
+- The section a correction round adds to its pull request ends with the `git revert`
+  that undoes the round.
+- QA and the reviewers are told that the tool calls of one response run together, as
+  the implementer was. They made a single call in 70 % and 76 % of their turns.
+
+### Fixed
+
+- A change its reviewers reject goes back to the implementer with what they said, as
+  one QA rejects does. The task ended there, with the change written, approved by QA
+  and not delivered. If the budget is spent by then, the task pauses with what was left
+  to correct, and `sentinel resume` goes on from it.
+- A task its reviewers block says what the reviewer that rejected it said. It quoted
+  the first reviewer of the pair, whichever of the two had rejected.
+- A pull request whose checks GitHub did not start, as when the account's Actions
+  budget has run out, ends the task blocked at once with what GitHub said. Sentinel
+  took those checks for a failure of the change and paid the implementer to correct
+  code nothing was wrong with.
+- The page of a task blocked after QA approved the change says why it is blocked. Under
+  "Blocked" it showed QA's approval and no reason, as happened with those checks.
+
 ## [0.12.4] - 2026-11-23
 
 ### Changed
