@@ -18,6 +18,12 @@ Sentinel runs coding agents on a machine you control. Each task runs in a sandbo
 never holds your keys. A second agent, which did not write the change, tests it. The
 result is a pull request for you to review; the agent cannot merge.
 
+A code review reads your change. Sentinel runs it: your tests run against your branch
+and against its base, a separate QA writes the test that was missing, and the pull
+request carries the evidence. If you already use a review bot such as Claude Ship,
+Sentinel is the check that tests what that bot reviews: its verdict is the commit
+status `sentinel/verification`, which a branch rule can require.
+
 > **Pre-alpha.** Only `sentinel up`, `sentinel down`, `sentinel cancel`,
 > `sentinel doctor`, `sentinel pull`, `sentinel resume`, `sentinel run`,
 > `sentinel runs`, `sentinel setup`, `sentinel stop`, `sentinel update`,
