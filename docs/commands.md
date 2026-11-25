@@ -17,7 +17,7 @@
 | `sentinel models add <name> <address>` | Let Sentinel on this machine use a model served here, such as Ollama (`http://localhost:11434/v1`) or LM Studio (`http://localhost:1234/v1`). `localhost` becomes `host.docker.internal`, the name Sentinel's containers give this machine; plain `http://` is only for this machine or a private address. It restarts Sentinel's API and broker, and the model shows in Settings > API keys under Operator OpenAI-Compatible Endpoint. `sentinel models` lists them and `sentinel models remove <name>` removes one. Only a Sentinel you run yourself takes a model on your machine. |
 | `sentinel mcp` | Serve Sentinel's tools to your coding agent (Claude Code, Codex, Cursor and others) over MCP. The agent starts it; you do not run it by hand. |
 | `sentinel pull <run id>` | Fetch the pull request of a run into the local branch `sentinel/<run id>` and switch to it. |
-| `sentinel resume <run id>` | Continue a run that paused at its budget or its time limit, from the work it kept if any, and wait for the pull request. `--budget` sets the new limit per task. |
+| `sentinel resume <run id>` | Continue a run that paused at its budget, its time limit or its rounds, from the work it kept if any, and wait for the pull request. `--budget` sets the new limit per task. |
 | `sentinel run "<task>"` | Send a task and a patch of this working tree to a Sentinel server, wait, and print the pull request. With `--dry-run` it shows what would be sent: the GitHub repository, the commit GitHub already has, and the files in the patch. It then sends nothing. |
 | `sentinel run --from-claude-code` | Like `sentinel run`, with the task taken from the newest Claude Code session started in this folder: what you asked there, newest request first, at most 4000 characters. Claude's answers and the tools' output are never read. Use it when Claude Code stops at its limit; `--dry-run` shows the task first. |
 | `sentinel runs` | List the latest runs of a Sentinel server: status, repository, pull request, cost, start and title. |
@@ -180,8 +180,10 @@
   - Exit status: `0` when the branch was created or moved, `1` otherwise, `2` when the
     command line was wrong.
 - `sentinel resume` takes the id of a run that ended because it reached its budget per
-  task. It reads the run's task from `SENTINEL_URL` and starts a new run of it that
-  begins with the work the paused run kept, so nothing done so far is repeated; a run
+  task or its time limit, or because QA or the reviewers still turned the change down
+  when no round was left. It reads the run's task from `SENTINEL_URL` and starts a new
+  run of it that begins with the work the paused run kept, and with what was left to
+  correct when it used up its rounds, so nothing done so far is repeated; a run
   that paused before writing anything starts the task again. Without
   `--budget` the new run gets the organization's limit; a limit above it is lowered to
   it, and only the owner can resume above it, in the panel. A run is resumed once. The
