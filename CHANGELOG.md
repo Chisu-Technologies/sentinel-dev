@@ -7,6 +7,24 @@ Notable changes are listed here, following
 
 ## [Unreleased]
 
+## [0.12.6] - 2026-11-25
+
+### Changed
+
+- The server that `sentinel up` runs is Sentinel 7f19905b.
+- `sentinel resume` also continues a run that used up its rounds: one that ended because
+  QA or the reviewers still turned the change down when no round was left. The new run
+  starts from the work the run kept and from what was left to correct, with rounds
+  again. Before, only a run that paused at its budget or its time limit could be
+  resumed, and this one had to be done again from the start.
+
+### Fixed
+
+- A task that runs for more than an hour keeps its access to the model. Its permission
+  lasted one hour while a task may run for 110 minutes, so the server refused its next
+  call at minute 61 and the task ended blocked, saying "Reconcile unknown inference cost
+  before more paid work".
+
 ## [0.12.5] - 2026-11-24
 
 ### Changed

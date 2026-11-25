@@ -58,7 +58,9 @@ Your laptop asks, your server works, and GitHub receives a pull request.
    and merge it yourself.
 
 Each step is saved when it completes. A run that reaches its spending limit pauses and
-waits for you; `sentinel resume` continues it with a larger limit or another model.
+waits for you; `sentinel resume` continues it with a larger limit or another model. A
+run that used up its rounds keeps its work the same way, with what was left to correct,
+and `sentinel resume` continues it with rounds again.
 `sentinel stop` halts every run on the server, and stays in force after a restart.
 
 ## What is open

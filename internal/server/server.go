@@ -340,7 +340,7 @@ func (c *Client) StartTask(ctx context.Context, req TaskRequest) (Run, error) {
 	return run, nil
 }
 
-// ResumeRequest continues a run that paused at its budget or its time limit.
+// ResumeRequest continues a run that paused at its budget, its time limit or its rounds.
 type ResumeRequest struct {
 	Paused Run
 	// BudgetUSD is the new limit per task; zero keeps the organization's.
