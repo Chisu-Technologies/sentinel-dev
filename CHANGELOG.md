@@ -7,6 +7,28 @@ Notable changes are listed here, following
 
 ## [Unreleased]
 
+## [0.12.7] - 2026-11-25
+
+### Changed
+
+- The server that `sentinel up` runs is Sentinel 4eb45f6f.
+- `sentinel resume` also continues a run that ended because a reviewer's verdict could
+  not be used: QA had approved the change, one reviewer answered with an incomplete
+  verdict, and the task ended blocked with its change written. The new run reviews it
+  again from the work the run kept.
+
+### Fixed
+
+- A task is no longer blocked as a failure of the model provider or of the sandbox
+  because of what its tests print. When your tests ran and failed, the failure goes back
+  to the agent whatever they say. Before, words such as `unauthorized`, `HTTP 401`,
+  `rate limit`, `permission denied` or `403 Forbidden` in the name or the message of a
+  failing test were read as that kind of failure; a test named `...Unauthorized...`
+  ended its task with "Automatic recovery is not allowed for this failure".
+- When your tests do not finish in the sandbox's time, the agent now gets what they had
+  printed until then, and a message that says so. Before it got only a timeout notice,
+  with nothing to tell which test was waiting, and ran them again.
+
 ## [0.12.6] - 2026-11-25
 
 ### Changed
