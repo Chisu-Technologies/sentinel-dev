@@ -180,8 +180,9 @@
   - Exit status: `0` when the branch was created or moved, `1` otherwise, `2` when the
     command line was wrong.
 - `sentinel resume` takes the id of a run that ended because it reached its budget per
-  task or its time limit, or because QA or the reviewers still turned the change down
-  when no round was left. It reads the run's task from `SENTINEL_URL` and starts a new
+  task or its time limit, because QA or the reviewers still turned the change down
+  when no round was left, or because a reviewer's verdict could not be used. It reads
+  the run's task from `SENTINEL_URL` and starts a new
   run of it that begins with the work the paused run kept, and with what was left to
   correct when it used up its rounds, so nothing done so far is repeated; a run
   that paused before writing anything starts the task again. Without
