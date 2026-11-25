@@ -102,7 +102,7 @@ Commands:
   models add <name> <url>   Let Sentinel on this machine use a model served here (Ollama, LM Studio)
   pull <run id>             Fetch the pull request of a run into a local branch
   restore --yes <backup>    Replace the data of Sentinel on this machine with a backup
-  resume <run id>           Continue a run that paused at its budget, its time limit or its rounds
+  resume <run id>           Continue a run that stopped, from the work it kept, or answer its question
   run "<task>"              Send a task and this working tree to a Sentinel server
   runs                      List the runs of a Sentinel server
   session [--mode <mode>]   Plan a change with the Architect, then run it (plan, edit, auto)

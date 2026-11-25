@@ -179,13 +179,15 @@
   changes. It never merges, rebases, stashes or discards.
   - Exit status: `0` when the branch was created or moved, `1` otherwise, `2` when the
     command line was wrong.
-- `sentinel resume` takes the id of a run that ended because it reached its budget per
-  task or its time limit, because QA or the reviewers still turned the change down
-  when no round was left, or because a reviewer's verdict could not be used. It reads
-  the run's task from `SENTINEL_URL` and starts a new
-  run of it that begins with the work the paused run kept, and with what was left to
-  correct when it used up its rounds, so nothing done so far is repeated; a run
-  that paused before writing anything starts the task again. Without
+- `sentinel resume` takes the id of a run that stopped without delivering. A run can
+  be continued whatever stopped it, except one a person stopped, one the
+  organization's rules refused, and one that waits on its pull request. It reads the
+  run's task from `SENTINEL_URL` and starts a new run of it that begins with the work
+  the stopped run kept and at the step it had reached, so nothing done so far is
+  repeated; a run that stopped before writing anything starts the task again. A run
+  that is paused with a question needs `--reply "<your answer>"`: without it the
+  command prints the question and sends nothing. `--reply` also says what changes in
+  the task. A server that does not take a reply has the new run stopped at once. Without
   `--budget` the new run gets the organization's limit; a limit above it is lowered to
   it, and only the owner can resume above it, in the panel. A run is resumed once. The
   server names the run it continues in its answer; a server that does not, and so

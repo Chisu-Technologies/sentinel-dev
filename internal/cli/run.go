@@ -250,7 +250,14 @@ func printRunResult(env Env, result runResult, story server.Story, asJSON bool, 
 		table(env, "Cost", fmt.Sprintf("$%.2f", *result.CostUSD))
 	}
 	if result.Reason != "" {
-		table(env, "Reason", result.Reason)
+		// A task its supervisor paused is waiting for an answer, not failed
+		// for a reason.
+		if askedOfTheUser(story) != "" {
+			table(env, "Question", result.Reason)
+			table(env, "Answer with", fmt.Sprintf("sentinel resume %s --reply \"<your answer>\"", result.RunID))
+		} else {
+			table(env, "Reason", result.Reason)
+		}
 	}
 	return code
 }

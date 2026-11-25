@@ -7,6 +7,20 @@ Notable changes are listed here, following
 
 ## [Unreleased]
 
+### Added
+
+- `sentinel resume --reply "<text>"` answers the question a run was paused with, or
+  says what changes in the task. A run paused with a question prints it, with the
+  command that answers it, where a blocked run prints its reason; `sentinel resume`
+  without `--reply` on such a run prints the question and sends nothing. It needs a
+  server that takes a reply: one that does not has the new run stopped at once.
+
+### Changed
+
+- `sentinel resume` no longer says which stops can be continued by listing them: a run
+  can be continued whatever stopped it, except one a person stopped, one the
+  organization's rules refused, and one that waits on its pull request.
+
 ## [0.12.7] - 2026-11-25
 
 ### Changed

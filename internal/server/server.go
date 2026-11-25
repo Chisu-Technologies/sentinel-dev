@@ -209,6 +209,9 @@ type Run struct {
 	// ResumedFrom comes only in the answer that creates a resume: the paused run
 	// it continues.
 	ResumedFrom string `json:"resumed_from"`
+	// ReplyTaken comes only in the answer that creates a resume sent with a
+	// reply: the server took what the person wrote.
+	ReplyTaken bool `json:"reply_taken"`
 	// Findings are the tasks of the run, as the server keeps them. They are
 	// sent back unchanged to resume it.
 	Findings []json.RawMessage `json:"findings"`
@@ -347,7 +350,17 @@ type ResumeRequest struct {
 	BudgetUSD float64
 	// BaseRef is sent only when not empty.
 	BaseRef string
+	// Reply is what the person writes on resuming: the answer to the question
+	// the run was paused with, or a change of what the task asks for. It is
+	// sent only when not empty.
+	Reply string
 }
+
+// MaxReply is how long a reply may be, in characters; the server refuses more.
+const MaxReply = 4000
+
+// ErrNoReply means the server resumed the run but did not take the reply.
+var ErrNoReply = errors.New("this server does not take a reply yet; update it and resume the run again")
 
 // ErrNoResume means the server started the task afresh instead of resuming it.
 var ErrNoResume = errors.New("this server does not resume runs yet; update it, or resume the task from its panel")
@@ -376,15 +389,26 @@ func (c *Client) StartResume(ctx context.Context, req ResumeRequest) (Run, error
 	if req.BaseRef != "" {
 		body["base_ref"] = req.BaseRef
 	}
+	if req.Reply != "" {
+		body["reply"] = req.Reply
+	}
 	run, err := c.start(ctx, body)
 	if err != nil {
 		return Run{}, err
 	}
+	// A server that did not do what was asked ignored a field it does not
+	// know: the run it started is not the one the person wanted.
+	notDone := error(nil)
 	if run.ResumedFrom != req.Paused.ID {
+		notDone = ErrNoResume
+	} else if req.Reply != "" && !run.ReplyTaken {
+		notDone = ErrNoReply
+	}
+	if notDone != nil {
 		if _, stopErr := c.Stop(ctx, run.ID); stopErr != nil {
-			return Run{}, fmt.Errorf("%w; stopping run %s failed too: %v", ErrNoResume, run.ID, stopErr)
+			return Run{}, fmt.Errorf("%w; stopping run %s failed too: %v", notDone, run.ID, stopErr)
 		}
-		return Run{}, fmt.Errorf("%w; run %s was stopped", ErrNoResume, run.ID)
+		return Run{}, fmt.Errorf("%w; run %s was stopped", notDone, run.ID)
 	}
 	return run, nil
 }
