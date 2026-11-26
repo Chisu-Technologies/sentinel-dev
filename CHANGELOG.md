@@ -17,6 +17,10 @@ Notable changes are listed here, following
 
 ### Changed
 
+- `sentinel resume` continues toward the branch the stopped run targeted, on a server
+  that keeps it. Before, without `--base` the new run's pull request targeted the
+  default branch. `--base` with another branch than the one the run targeted is
+  refused.
 - The documentation describes a run with a supervisor, QA and adversarial QA, and says
   what bounds a run: its spending limit.
 - `sentinel run` and `sentinel verify`, when they stop waiting for a run that is still

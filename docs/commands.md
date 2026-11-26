@@ -194,8 +194,10 @@
   it, and only the owner can resume above it, in the panel. A run is resumed once. The
   server names the run it continues in its answer; a server that does not, and so
   would do the task again from the start, has that new run stopped at once. It waits
-  and prints like `sentinel run`, with the same `--json`, `--no-wait`, `--timeout` and
-  `--base`.
+  and prints like `sentinel run`, with the same `--json`, `--no-wait` and `--timeout`.
+  The new run's pull request targets the branch the stopped run targeted. `--base
+  <branch>` names it for a run whose server did not keep it; another branch than the
+  one the run targeted is refused.
   - Exit status: `0` when the resumed run passed QA and opened a pull request, `1`
     otherwise, `2` when the command line was wrong.
 - `sentinel stop --yes` stops every run of the organization of your API key. Without

@@ -20,7 +20,7 @@ func runResume(ctx context.Context, args []string, env Env) int {
 	asJSON := fs.Bool("json", false, "print the result as JSON")
 	noWait := fs.Bool("no-wait", false, "print the run id and stop, without waiting for the pull request")
 	timeout := fs.Duration("timeout", 2*time.Hour, "how long to wait for the run to end, such as 90m")
-	base := fs.String("base", "", "the branch the pull request targets, when it is not the default one")
+	base := fs.String("base", "", "the branch the pull request targets, for a run whose server did not keep it")
 	reply := fs.String("reply", "", "what you answer to the question the run was paused with, or what changes in the task")
 	if code := parse(fs, args, env, "resume [--reply <text>] [--budget <usd>] [--json] [--no-wait] [--timeout <duration>] [--base <branch>] <run id>"); code >= 0 {
 		return code
