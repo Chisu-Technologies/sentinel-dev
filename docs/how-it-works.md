@@ -60,9 +60,10 @@ Your laptop asks, your server works, and GitHub receives a pull request.
    instead of failing.
 3. The supervisor prepares the task. If something only you can give is missing, the run
    pauses here with its question, before any work is paid for.
-4. The agent works in its sandbox: the tests first, then the code. The instructions
-   your repository carries in `AGENTS.md` and `CLAUDE.md` are given to it as data from
-   the repository, with a size limit.
+4. The agent works in its sandbox: the tests first, then the code. It can run commands
+   of its own there, such as a build, one test or a formatter; QA can run them too,
+   without changing the code. The instructions your repository carries in `AGENTS.md`
+   and `CLAUDE.md` are given to it as data from the repository, with a size limit.
 5. QA tests the result on a clean copy. A rejection sends the work back to the agent
    with its reason.
 6. Adversarial QA tries to break what the change touched. What it finds sends the work
@@ -76,6 +77,9 @@ larger limit or another model. A limit of rounds, and of steps per agent, applie
 to a run that has no spending limit or whose supervisor cannot be reached. A run its
 supervisor paused shows the question, and `sentinel resume --reply "<answer>"` continues
 it from the step where it stopped.
+A task that outlasts one stretch of work goes on by itself from what it saved, and a
+command it runs may take the time the task has left. Its supervisor looks at each
+stretch: when one brought nothing new, it pauses the task and asks you.
 `sentinel stop` halts every run on the server, and stays in force after a restart.
 
 ## What is open

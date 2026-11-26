@@ -22,7 +22,9 @@ Notable changes are listed here, following
   default branch. `--base` with another branch than the one the run targeted is
   refused.
 - The documentation describes a run with a supervisor, QA and adversarial QA, and says
-  what bounds a run: its spending limit.
+  what bounds a run: its spending limit. It also says that the agent and QA can run
+  commands of their own in the sandbox, and that a task that outlasts one stretch of
+  work goes on by itself.
 - `sentinel run` and `sentinel verify`, when they stop waiting for a run that is still
   going, print the command that follows it again: `sentinel watch <run id>`.
 - `sentinel resume` no longer says which stops can be continued by listing them: a run
