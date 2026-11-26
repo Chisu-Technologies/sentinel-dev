@@ -55,7 +55,8 @@ Lee [cómo funciona](docs/how-it-works.md) y los [comandos](docs/commands.md).
 ## En qué se apoya
 
 - **Un pull request comprobado.** Un agente de QA distinto del que escribió el cambio
-  corre las pruebas y revisa el diff antes de que se abra el pull request.
+  corre las pruebas y lo contrasta con la tarea, y otro intenta romperlo, antes de que
+  se abra el pull request.
 - **Corridas que no se pierden.** Cada paso de una corrida se guarda al terminar, así
   que la corrida continúa después de que el servidor se reinicie. Reiniciar el
   servidor a media corrida es una de las pruebas que cierran la Fase 1; todavía no se

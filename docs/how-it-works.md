@@ -38,8 +38,17 @@ Your laptop asks, your server works, and GitHub receives a pull request.
   call that would take the run over its spending limit.
 - **The sandbox.** One per task. It has the code and no credentials. Its network goes
   through an allowlist. See the [security model](security-model.md).
+- **The supervisor.** One per task. It reads the task before anyone works on it, lists
+  what the task requires and forbids, and checks that what the task needs is there. It
+  briefs the agent that writes the change, answers that agent and QA when they are
+  stuck, and pauses the task with a question for you when only you have what is
+  missing. It writes no code and approves nothing.
 - **QA.** A second agent that did not write the change. It works on a clean copy, runs
-  the tests and reviews the diff. Without its approval no pull request opens.
+  the tests and checks the change against the task. Without its approval no pull
+  request opens.
+- **Adversarial QA.** A third agent. It tries to break the change, within what the
+  change touched: edge cases, security holes, data leaving the system. Without its
+  approval no pull request opens either.
 - **PolicyGate.** The rules every action passes through. It denies by default, and
   merging is always denied.
 
@@ -49,18 +58,24 @@ Your laptop asks, your server works, and GitHub receives a pull request.
    a commit GitHub already has.
 2. The server queues the run. If there is no memory for another sandbox, the run waits
    instead of failing.
-3. The agent works in its sandbox. The instructions your repository carries in
-   `AGENTS.md` and `CLAUDE.md` are given to it as data from the repository, with a
-   size limit.
-4. QA tests the result on a clean copy. A rejection sends the work back to the agent,
-   up to a limit of rounds.
-5. With QA passed, the server pushes a branch and opens the pull request. You review
+3. The supervisor prepares the task. If something only you can give is missing, the run
+   pauses here with its question, before any work is paid for.
+4. The agent works in its sandbox: the tests first, then the code. The instructions
+   your repository carries in `AGENTS.md` and `CLAUDE.md` are given to it as data from
+   the repository, with a size limit.
+5. QA tests the result on a clean copy. A rejection sends the work back to the agent
+   with its reason.
+6. Adversarial QA tries to break what the change touched. What it finds sends the work
+   back the same way.
+7. With both passed, the server pushes a branch and opens the pull request. You review
    and merge it yourself.
 
-Each step is saved when it completes. A run that reaches its spending limit pauses and
-waits for you; `sentinel resume` continues it with a larger limit or another model. A
-run that used up its rounds keeps its work the same way, with what was left to correct,
-and `sentinel resume` continues it with rounds again.
+Each step is saved when it completes. What bounds a run is its spending limit: a run
+that reaches it pauses and waits for you, and `sentinel resume` continues it with a
+larger limit or another model. A limit of rounds, and of steps per agent, applies only
+to a run that has no spending limit or whose supervisor cannot be reached. A run its
+supervisor paused shows the question, and `sentinel resume --reply "<answer>"` continues
+it from the step where it stopped.
 `sentinel stop` halts every run on the server, and stays in force after a restart.
 
 ## What is open

@@ -17,6 +17,10 @@ Notable changes are listed here, following
 
 ### Changed
 
+- The documentation describes a run with a supervisor, QA and adversarial QA, and says
+  what bounds a run: its spending limit.
+- `sentinel run` and `sentinel verify`, when they stop waiting for a run that is still
+  going, print the command that follows it again: `sentinel watch <run id>`.
 - `sentinel resume` no longer says which stops can be continued by listing them: a run
   can be continued whatever stopped it, except one a person stopped, one the
   organization's rules refused, and one that waits on its pull request.

@@ -159,9 +159,10 @@ func followRun(ctx context.Context, env Env, client *server.Client, run server.R
 	}
 
 	// From here a failure leaves a run behind on the server; every message says
-	// so, with the id, so the user can look at it there.
+	// so, with the id and the command that follows it again: a run lasts as
+	// long as its budget does, which can be longer than this command waits.
 	stillRunning := func(why string) int {
-		return fail("%s Run %s continues on the server.", why, run.ID)
+		return fail("%s Run %s continues on the server. Follow it with: sentinel watch %s", why, run.ID, run.ID)
 	}
 	w := newWaiter(ctx, env, client, timeout)
 	defer w.cancel()

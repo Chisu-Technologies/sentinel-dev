@@ -51,7 +51,8 @@ Read [how it works](docs/how-it-works.md) and the [commands](docs/commands.md).
 ## What it is built around
 
 - **A pull request that was checked.** A QA agent separate from the one that wrote the
-  change runs the tests and reviews the diff before the pull request opens.
+  change runs the tests and checks it against the task, and another one tries to break
+  it, before the pull request opens.
 - **Runs that are not lost.** Each step of a run is saved when it completes, so a run
   continues after the server restarts. Restarting the server in the middle of a run is
   one of the tests that closes Phase 1; it has not been run yet.

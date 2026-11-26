@@ -52,7 +52,8 @@
     yet would do the task without it; `sentinel run` then stops the run and exits `1`.
   - `--base <branch>` names the branch the pull request targets, when it is not the
     default one. `--no-wait` prints the run id and stops. `--timeout <duration>` is how
-    long to wait, `2h` by default; the run continues on the server after it.
+    long to wait, `2h` by default; the run continues on the server after it, and
+    `sentinel watch <run id>` follows it again.
   - `--json` prints one JSON object on standard output; progress goes to standard
     error.
   - Exit status: `0` when the run opened a pull request that passed QA, or when
@@ -73,7 +74,8 @@
     current checkout, or a URL such as `https://github.com/owner/name/pull/12`.
   - `--base <branch>` names the branch the pull request targets, when it is not the
     default one. `--no-wait` prints the run id and stops. `--timeout <duration>` is
-    how long to wait, `45m` by default; the run continues on the server after it.
+    how long to wait, `45m` by default; the run continues on the server after it,
+    and `sentinel watch <run id>` follows it again.
   - `--dry-run` shows the repository, the pull request and the host of the server,
     and sends nothing. It needs no key.
   - `--json` prints one JSON object on standard output; progress goes to standard

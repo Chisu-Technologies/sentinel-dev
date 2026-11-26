@@ -440,6 +440,9 @@ func TestVerifyATimeoutExitsOneAndNamesTheRun(t *testing.T) {
 	if !strings.Contains(stderr.String(), "Gave up waiting after 10m0s.") || !strings.Contains(stderr.String(), "Run run-7 continues on the server.") {
 		t.Errorf("stderr = %q, want the timeout and the run id", stderr.String())
 	}
+	if !strings.Contains(stderr.String(), "Follow it with: sentinel watch run-7") {
+		t.Errorf("stderr = %q, want the command that follows the run again", stderr.String())
+	}
 	if strings.Contains(stderr.String(), verifyKey) {
 		t.Error("the key reached stderr")
 	}
