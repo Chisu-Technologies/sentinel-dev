@@ -77,9 +77,9 @@ larger limit or another model. A limit of rounds, and of steps per agent, applie
 to a run that has no spending limit or whose supervisor cannot be reached. A run its
 supervisor paused shows the question, and `sentinel resume --reply "<answer>"` continues
 it from the step where it stopped.
-A task that outlasts one stretch of work goes on by itself from what it saved. Its
-supervisor looks at each stretch: when one brought nothing new, it pauses the task and
-asks you.
+A task that outlasts one stretch of work goes on by itself from what it saved, and a
+command it runs may take the time that stretch has left. Its supervisor looks at each
+stretch: when one brought nothing new, it pauses the task and asks you.
 `sentinel stop` halts every run on the server, and stays in force after a restart.
 
 ## What is open
