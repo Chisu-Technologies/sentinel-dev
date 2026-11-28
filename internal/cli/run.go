@@ -159,9 +159,10 @@ func followRun(ctx context.Context, env Env, client *server.Client, run server.R
 	}
 
 	// From here a failure leaves a run behind on the server; every message says
-	// so, with the id, so the user can look at it there.
+	// so, with the id and the command that follows it again: a run lasts as
+	// long as its budget does, which can be longer than this command waits.
 	stillRunning := func(why string) int {
-		return fail("%s Run %s continues on the server.", why, run.ID)
+		return fail("%s Run %s continues on the server. Follow it with: sentinel watch %s", why, run.ID, run.ID)
 	}
 	w := newWaiter(ctx, env, client, timeout)
 	defer w.cancel()
@@ -250,7 +251,14 @@ func printRunResult(env Env, result runResult, story server.Story, asJSON bool, 
 		table(env, "Cost", fmt.Sprintf("$%.2f", *result.CostUSD))
 	}
 	if result.Reason != "" {
-		table(env, "Reason", result.Reason)
+		// A task its supervisor paused is waiting for an answer, not failed
+		// for a reason.
+		if askedOfTheUser(story) != "" {
+			table(env, "Question", result.Reason)
+			table(env, "Answer with", fmt.Sprintf("sentinel resume %s --reply \"<your answer>\"", result.RunID))
+		} else {
+			table(env, "Reason", result.Reason)
+		}
 	}
 	return code
 }

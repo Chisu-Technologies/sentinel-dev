@@ -17,7 +17,8 @@ state and the recent log lines of your runs. `sentinel cancel` sends your API ke
 a run id, and reads back the state of that run. `sentinel pull` sends your API key and
 a run id, then runs `git fetch` against your repository's own remote.
 `sentinel resume` sends your API key, a run id, the task the server already has for
-that run, and the limit you give. `sentinel stop` sends only your API key. Only
+that run, the limit you give and, with `--reply`, what you write there.
+`sentinel stop` sends only your API key. Only
 `sentinel run` reads or sends your working tree. `sentinel update` asks GitHub for the
 latest release of the command and downloads it; it sends nothing about this machine or
 its repositories. `sentinel up` downloads the images of Sentinel from the GitHub

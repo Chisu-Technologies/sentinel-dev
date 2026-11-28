@@ -52,7 +52,8 @@
     yet would do the task without it; `sentinel run` then stops the run and exits `1`.
   - `--base <branch>` names the branch the pull request targets, when it is not the
     default one. `--no-wait` prints the run id and stops. `--timeout <duration>` is how
-    long to wait, `2h` by default; the run continues on the server after it.
+    long to wait, `2h` by default; the run continues on the server after it, and
+    `sentinel watch <run id>` follows it again.
   - `--json` prints one JSON object on standard output; progress goes to standard
     error.
   - Exit status: `0` when the run opened a pull request that passed QA, or when
@@ -73,7 +74,8 @@
     current checkout, or a URL such as `https://github.com/owner/name/pull/12`.
   - `--base <branch>` names the branch the pull request targets, when it is not the
     default one. `--no-wait` prints the run id and stops. `--timeout <duration>` is
-    how long to wait, `45m` by default; the run continues on the server after it.
+    how long to wait, `45m` by default; the run continues on the server after it,
+    and `sentinel watch <run id>` follows it again.
   - `--dry-run` shows the repository, the pull request and the host of the server,
     and sends nothing. It needs no key.
   - `--json` prints one JSON object on standard output; progress goes to standard
@@ -179,19 +181,23 @@
   changes. It never merges, rebases, stashes or discards.
   - Exit status: `0` when the branch was created or moved, `1` otherwise, `2` when the
     command line was wrong.
-- `sentinel resume` takes the id of a run that ended because it reached its budget per
-  task or its time limit, because QA or the reviewers still turned the change down
-  when no round was left, or because a reviewer's verdict could not be used. It reads
-  the run's task from `SENTINEL_URL` and starts a new
-  run of it that begins with the work the paused run kept, and with what was left to
-  correct when it used up its rounds, so nothing done so far is repeated; a run
-  that paused before writing anything starts the task again. Without
+- `sentinel resume` takes the id of a run that stopped without delivering. A run can
+  be continued whatever stopped it, except one a person stopped, one the
+  organization's rules refused, and one that waits on its pull request. It reads the
+  run's task from `SENTINEL_URL` and starts a new run of it that begins with the work
+  the stopped run kept and at the step it had reached, so nothing done so far is
+  repeated; a run that stopped before writing anything starts the task again. A run
+  that is paused with a question needs `--reply "<your answer>"`: without it the
+  command prints the question and sends nothing. `--reply` also says what changes in
+  the task. A server that does not take a reply has the new run stopped at once. Without
   `--budget` the new run gets the organization's limit; a limit above it is lowered to
   it, and only the owner can resume above it, in the panel. A run is resumed once. The
   server names the run it continues in its answer; a server that does not, and so
   would do the task again from the start, has that new run stopped at once. It waits
-  and prints like `sentinel run`, with the same `--json`, `--no-wait`, `--timeout` and
-  `--base`.
+  and prints like `sentinel run`, with the same `--json`, `--no-wait` and `--timeout`.
+  The new run's pull request targets the branch the stopped run targeted. `--base
+  <branch>` names it for a run whose server did not keep it; another branch than the
+  one the run targeted is refused.
   - Exit status: `0` when the resumed run passed QA and opened a pull request, `1`
     otherwise, `2` when the command line was wrong.
 - `sentinel stop --yes` stops every run of the organization of your API key. Without
