@@ -7,6 +7,8 @@ Notable changes are listed here, following
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-11-26
+
 ### Added
 
 - `sentinel resume --reply "<text>"` answers the question a run was paused with, or
@@ -17,6 +19,16 @@ Notable changes are listed here, following
 
 ### Changed
 
+- The server that `sentinel up` runs is Sentinel 296443e1.
+- A task has a supervisor. It prepares the task, answers a step that is stuck, hears why
+  work was sent back, and pauses the task with a question when only you have what is
+  missing. Its journal is on the run's page, where a paused run can also be answered.
+- A change is checked by QA and then by an adversarial QA, which tries to break it.
+- What bounds a task is its spending limit. A task that stops keeps its work and can be
+  continued, and one that outlasts a stretch of work goes on by itself.
+- The agent and QA can run commands of their own in the sandbox.
+- When the Architect proposes an adjustment to a task of an approved plan, you confirm
+  it on a card that shows the note. The note then prevails over the original request.
 - `sentinel resume` continues toward the branch the stopped run targeted, on a server
   that keeps it. Before, without `--base` the new run's pull request targeted the
   default branch. `--base` with another branch than the one the run targeted is
@@ -30,6 +42,19 @@ Notable changes are listed here, following
 - `sentinel resume` no longer says which stops can be continued by listing them: a run
   can be continued whatever stopped it, except one a person stopped, one the
   organization's rules refused, and one that waits on its pull request.
+
+### Fixed
+
+- A command in the sandbox that took more than ten minutes was cut, and a project's
+  tests that took longer were reported as a failed container. A command now has the
+  time its task's stretch of work has left.
+- A command of the agent's could not find the tools its image keeps outside the standard
+  folders, such as `go` in a Go project.
+- A round was sent back with nothing to fix when the last thing the agent ran, after
+  its tests passed, was a command of its own that ended with an error.
+- A QA approval that arrived incomplete stopped the task with a reason that read as a
+  failed criterion. QA, the session that continues and the stopped task now say what
+  was missing.
 
 ## [0.12.7] - 2026-11-25
 
